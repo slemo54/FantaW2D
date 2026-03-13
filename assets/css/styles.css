@@ -1,0 +1,790 @@
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #e74c3c;
+    --accent-color: #f39c12;
+    --text-color: #333;
+    --light-bg: #f5f9fa;
+    --card-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    --danger-color: #e74c3c;
+    --success-color: #2ecc71;
+    --warning-color: #f39c12;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--light-bg);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    margin-bottom: 30px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding-bottom: 15px;
+}
+
+header h1 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+header h1::before {
+    content: "🏆";
+    margin-right: 10px;
+    font-size: 32px;
+}
+
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+h1, h2, h3 {
+    color: var(--primary-color);
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: var(--card-shadow);
+    border-top: 4px solid var(--primary-color);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-accent {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    display: block;
+    -webkit-overflow-scrolling: touch;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.nav-tabs {
+    display: flex;
+    list-style: none;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #ddd;
+    gap: 5px;
+}
+
+.nav-tabs li {
+    margin-right: 5px;
+}
+
+.nav-tabs a {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: var(--text-color);
+    font-weight: 600;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs a::before {
+    margin-right: 8px;
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+}
+
+.nav-tabs a[href="dashboard.php"]::before {
+    content: "\f015"; /* Home icon */
+}
+
+.nav-tabs a[href="leaderboard.php"]::before {
+    content: "\f091"; /* Trophy icon */
+}
+
+.nav-tabs a[href="transactions.php"]::before {
+    content: "\f155"; /* Money icon */
+}
+
+.nav-tabs a[href="admin.php"]::before {
+    content: "\f085"; /* Cog icon */
+}
+
+.nav-tabs a:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: var(--primary-color);
+}
+
+.nav-tabs a.active {
+    border-bottom: 3px solid var(--primary-color);
+    color: var(--primary-color);
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+.balance-card {
+    text-align: center;
+    font-size: 1.5em;
+    padding: 30px;
+}
+
+.balance-card .amount {
+    font-size: 2em;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.balance-card .negative {
+    color: var(--danger-color);
+}
+
+.transaction-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.transaction-list li {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.transaction-list li:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.transaction-list .malus {
+    color: var(--danger-color);
+    border-left: 4px solid var(--danger-color);
+}
+
+.transaction-list .bonus {
+    color: var(--success-color);
+    border-left: 4px solid var(--success-color);
+}
+
+.transaction-list small {
+    display: block;
+    color: #666;
+    margin-top: 5px;
+    font-size: 0.8em;
+}
+
+.transaction-list p {
+    margin: 5px 0;
+}
+
+.cancelled {
+    text-decoration: line-through;
+    opacity: 0.7;
+    background-color: rgba(0,0,0,0.03);
+}
+
+.transaction-list form {
+    margin-top: 10px;
+}
+
+.transaction-list button {
+    margin-top: 5px;
+}
+
+.jolly-form {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px;
+    color: white;
+    border-radius: 4px;
+    box-shadow: var(--card-shadow);
+    z-index: 1000;
+    animation: fadeOut 5s forwards;
+}
+
+.notification.success {
+    background-color: var(--success-color);
+}
+
+.notification.error {
+    background-color: var(--danger-color);
+}
+
+.notification.warning {
+    background-color: var(--warning-color);
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    width: 90%;
+    max-width: 500px;
+    border-top: 4px solid var(--primary-color);
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: black;
+}
+
+.login-container {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+footer {
+    text-align: center;
+    margin-top: 50px;
+    padding: 20px 0;
+    color: #666;
+}
+
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Table Responsive Styling */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+    display: block;
+    width: 100%;
+}
+
+/* Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.badge i {
+    margin-right: 0.25rem;
+}
+
+.badge-available {
+    color: white;
+    background-color: var(--success-color);
+}
+
+.badge-used {
+    color: white;
+    background-color: var(--danger-color);
+}
+
+/* Leaderboard Cards for Mobile */
+.leaderboard-cards {
+    display: none;
+}
+
+.leaderboard-card {
+    display: flex;
+    background-color: white;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.leaderboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.leaderboard-card .rank {
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    color: var(--primary-color);
+}
+
+.leaderboard-card .user-details {
+    flex: 1;
+    margin-left: 15px;
+}
+
+.leaderboard-card .user-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+}
+
+.leaderboard-card .user-balance {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+}
+
+.leaderboard-card .user-balance.negative {
+    color: var(--danger-color);
+}
+
+.leaderboard-card.current-user {
+    border-left: 4px solid var(--primary-color);
+    background-color: #e3f2fd;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+        width: 100%;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 15px;
+    }
+    
+    .nav-tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+        flex-wrap: nowrap;
+        padding-bottom: 5px;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    .nav-tabs a {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    .nav-tabs a::before {
+        margin-right: 4px;
+    }
+    
+    .user-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .user-info a {
+        margin-top: 10px;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .quick-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .quick-actions button, 
+    .quick-actions a {
+        width: 100%;
+        text-align: center;
+    }
+    
+    input[type="text"],
+    select,
+    button {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        -webkit-appearance: none; /* Better rendering on iOS */
+        appearance: none;
+        border-radius: 8px;
+    }
+    
+    .form-control {
+        min-height: 44px; /* Better touch target */
+    }
+    
+    /* Fix for iOS input shadow */
+    input, select, textarea, button {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+    
+    /* Fix scrolling issues on iOS */
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Disable pull-to-refresh on iOS */
+    html {
+        overscroll-behavior-y: none;
+    }
+    
+    /* Show card view instead of table on mobile */
+    .table-responsive {
+        display: none;
+    }
+    
+    .leaderboard-cards {
+        display: block;
+    }
+}
+
+/* Search & Filter Components */
+.filter-controls {
+    margin-bottom: 20px;
+}
+
+.search-box {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.search-box i {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.filter-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.transactions-container {
+    position: relative;
+}
+
+.transaction-item {
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.transaction-item.malus {
+    border-left-color: var(--danger-color);
+}
+
+.transaction-item.bonus {
+    border-left-color: var(--success-color);
+}
+
+.transaction-item.cancelled {
+    opacity: 0.7;
+    background-color: #f9f9f9;
+}
+
+.transaction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.transaction-user i {
+    margin-right: 5px;
+    color: var(--primary-color);
+}
+
+.transaction-amount {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.transaction-amount.negative {
+    color: var(--danger-color);
+}
+
+.transaction-amount.positive {
+    color: var(--success-color);
+}
+
+.transaction-details {
+    margin-bottom: 10px;
+}
+
+.transaction-type {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.transaction-description {
+    font-size: 1rem;
+}
+
+.transaction-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: all 0.2s ease;
+}
+
+.btn-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.btn-sm.btn-danger {
+    background-color: var(--danger-color);
+}
+
+.btn-sm.btn-secondary {
+    background-color: var(--secondary-color);
+}
+
+.cancelled-badge {
+    display: inline-block;
+    background-color: #f2f2f2;
+    color: var(--secondary-color);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    margin-left: 10px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 30px 0;
+    color: #888;
+}
+
+.no-results i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: #ccc;
+}
+
+/* Specific fixes for iPhone */
+@media screen and (max-width: 428px) { /* iPhone 13 Pro Max width */
+    .card {
+        padding: 15px;
+    }
+    
+    h1, h2 {
+        font-size: 1.5rem;
+    }
+    
+    .balance-card .amount {
+        font-size: 1.8em;
+    }
+    
+    .modal-content {
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        max-width: none;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    /* Improved transaction list for mobile */
+    .transaction-item {
+        padding: 12px;
+    }
+    
+    .transaction-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .transaction-footer button {
+        align-self: flex-end;
+    }
+}

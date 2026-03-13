@@ -1,0 +1,1089 @@
+import { useEffect, useState } from "react";
+import { createInitialState, deriveState, formatCurrency } from "./seed";
+
+const STORAGE_KEY = "fantaw2d-react-state-v1";
+
+const emptyUserForm = {
+  displayName: "",
+  username: "",
+  password: "",
+  email: "",
+  role: "user",
+};
+
+const emptyTransactionForm = {
+  userId: "",
+  malusTypeId: "",
+  description: "",
+};
+
+function App() {
+  const [state, setState] = useState(() => {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      return deriveState(createInitialState());
+    }
+
+    try {
+      return deriveState(JSON.parse(stored));
+    } catch {
+      return deriveState(createInitialState());
+    }
+  });
+  const [loginForm, setLoginForm] = useState({ username: "admin", password: "admin123" });
+  const [loginError, setLoginError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [userForm, setUserForm] = useState(emptyUserForm);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [adminRuleUserId, setAdminRuleUserId] = useState(state.users.find((user) => user.role !== "admin")?.id ?? 1);
+  const [ruleForm, setRuleForm] = useState({ malusTypeId: "", description: "" });
+  const [editingRuleId, setEditingRuleId] = useState(null);
+  const [malusForm, setMalusForm] = useState({ name: "", amount: "0.50" });
+  const [editingMalusId, setEditingMalusId] = useState(null);
+  const [transactionForm, setTransactionForm] = useState(emptyTransactionForm);
+  const [editingTransactionId, setEditingTransactionId] = useState(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
+
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setNotice(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
+  const isAdmin = currentUser?.role === "admin";
+  const selectedRuleUser =
+    state.users.find((user) => user.id === Number(adminRuleUserId)) ??
+    state.users.find((user) => user.role !== "admin") ??
+    state.users[0];
+
+  const activeView =
+    !currentUser ? "login" : !isAdmin && state.currentView === "admin" ? "dashboard" : state.currentView;
+
+  const updateState = (updater, message) => {
+    setState((current) => deriveState(typeof updater === "function" ? updater(current) : updater));
+    if (message) {
+      setNotice(message);
+    }
+  };
+
+  const login = (event) => {
+    event.preventDefault();
+    const user = state.users.find(
+      (candidate) =>
+        candidate.username.toLowerCase() === loginForm.username.trim().toLowerCase() &&
+        candidate.password === loginForm.password,
+    );
+
+    if (!user) {
+      setLoginError("Credenziali non valide.");
+      return;
+    }
+
+    setLoginError("");
+    updateState(
+      (current) => ({
+        ...current,
+        currentUserId: user.id,
+        currentView: "dashboard",
+      }),
+      `Accesso effettuato come ${user.displayName}.`,
+    );
+  };
+
+  const logout = () => {
+    updateState(
+      (current) => ({
+        ...current,
+        currentUserId: null,
+        currentView: "dashboard",
+      }),
+      "Sessione chiusa.",
+    );
+  };
+
+  const switchView = (view) => {
+    updateState((current) => ({
+      ...current,
+      currentView: view,
+    }));
+  };
+
+  const resetData = () => {
+    const fresh = deriveState(createInitialState());
+    setState(fresh);
+    setNotice("Dati ripristinati ai valori iniziali.");
+  };
+
+  const submitQuickMalus = (event) => {
+    event.preventDefault();
+    if (!currentUser) {
+      return;
+    }
+
+    const malusType = state.malusTypes.find((item) => item.id === transactionForm.malusTypeId);
+    if (!malusType || !transactionForm.userId) {
+      return;
+    }
+
+    updateState((current) => ({
+      ...current,
+      transactions: [
+        {
+          id: current.nextIds.transaction,
+          userId: Number(transactionForm.userId),
+          createdBy: currentUser.id,
+          type: "malus",
+          malusTypeId: malusType.id,
+          amount: Number(malusType.amount),
+          description: transactionForm.description.trim(),
+          cancelled: false,
+          timestamp: new Date().toISOString(),
+        },
+        ...current.transactions,
+      ],
+      nextIds: {
+        ...current.nextIds,
+        transaction: current.nextIds.transaction + 1,
+      },
+    }), "Malus registrato.");
+
+    setTransactionForm(emptyTransactionForm);
+  };
+
+  const startEditUser = (user) => {
+    setEditingUserId(user.id);
+    setUserForm({
+      displayName: user.displayName,
+      username: user.username,
+      password: user.password,
+      email: user.email || "",
+      role: user.role,
+    });
+  };
+
+  const submitUser = (event) => {
+    event.preventDefault();
+
+    updateState((current) => {
+      const normalizedUsername = userForm.username.trim().toLowerCase();
+      const duplicated = current.users.find(
+        (user) => user.username === normalizedUsername && user.id !== editingUserId,
+      );
+
+      if (duplicated) {
+        setNotice("Username gia presente.");
+        return current;
+      }
+
+      if (editingUserId) {
+        return {
+          ...current,
+          users: current.users.map((user) =>
+            user.id === editingUserId
+              ? {
+                  ...user,
+                  displayName: userForm.displayName.trim(),
+                  username: normalizedUsername,
+                  password: userForm.password,
+                  email: userForm.email.trim(),
+                  role: userForm.role,
+                }
+              : user,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        users: [
+          ...current.users,
+          {
+            id: current.nextIds.user,
+            displayName: userForm.displayName.trim(),
+            username: normalizedUsername,
+            password: userForm.password,
+            email: userForm.email.trim(),
+            role: userForm.role,
+            balance: 0,
+            malusRules: [],
+          },
+        ],
+        nextIds: {
+          ...current.nextIds,
+          user: current.nextIds.user + 1,
+        },
+      };
+    }, editingUserId ? "Utente aggiornato." : "Utente creato.");
+
+    setEditingUserId(null);
+    setUserForm(emptyUserForm);
+  };
+
+  const deleteUser = (userId) => {
+    if (userId === currentUser?.id) {
+      setNotice("Non puoi eliminare l'utente con cui sei loggato.");
+      return;
+    }
+
+    updateState((current) => ({
+      ...current,
+      users: current.users.filter((user) => user.id !== userId),
+      transactions: current.transactions.filter(
+        (transaction) => transaction.userId !== userId && transaction.createdBy !== userId,
+      ),
+    }), "Utente eliminato.");
+  };
+
+  const submitMalusType = (event) => {
+    event.preventDefault();
+
+    updateState((current) => {
+      if (editingMalusId) {
+        return {
+          ...current,
+          malusTypes: current.malusTypes.map((item) =>
+            item.id === editingMalusId
+              ? { ...item, name: malusForm.name.trim(), amount: Number(malusForm.amount) }
+              : item,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        malusTypes: [
+          ...current.malusTypes,
+          {
+            id: `malus-${current.nextIds.malusType}`,
+            name: malusForm.name.trim(),
+            amount: Number(malusForm.amount),
+          },
+        ],
+        nextIds: {
+          ...current.nextIds,
+          malusType: current.nextIds.malusType + 1,
+        },
+      };
+    }, editingMalusId ? "Malus aggiornato." : "Nuovo malus aggiunto.");
+
+    setEditingMalusId(null);
+    setMalusForm({ name: "", amount: "0.50" });
+  };
+
+  const deleteMalusType = (malusTypeId) => {
+    updateState((current) => ({
+      ...current,
+      malusTypes: current.malusTypes.filter((item) => item.id !== malusTypeId),
+      users: current.users.map((user) => ({
+        ...user,
+        malusRules: user.malusRules.filter((rule) => rule.malusTypeId !== malusTypeId),
+      })),
+      transactions: current.transactions.filter((transaction) => transaction.malusTypeId !== malusTypeId),
+    }), "Malus eliminato.");
+  };
+
+  const startEditRule = (rule) => {
+    setEditingRuleId(rule.id);
+    setRuleForm({
+      malusTypeId: rule.malusTypeId,
+      description: rule.description,
+    });
+  };
+
+  const submitRule = (event) => {
+    event.preventDefault();
+    if (!selectedRuleUser) {
+      return;
+    }
+
+    updateState((current) => ({
+      ...current,
+      users: current.users.map((user) => {
+        if (user.id !== selectedRuleUser.id) {
+          return user;
+        }
+
+        if (editingRuleId) {
+          return {
+            ...user,
+            malusRules: user.malusRules.map((rule) =>
+              rule.id === editingRuleId ? { ...rule, ...ruleForm } : rule,
+            ),
+          };
+        }
+
+        return {
+          ...user,
+          malusRules: [
+            ...user.malusRules,
+            {
+              id: current.nextIds.rule,
+              malusTypeId: ruleForm.malusTypeId,
+              description: ruleForm.description.trim(),
+            },
+          ],
+        };
+      }),
+      nextIds: editingRuleId
+        ? current.nextIds
+        : {
+            ...current.nextIds,
+            rule: current.nextIds.rule + 1,
+          },
+    }), editingRuleId ? "Regola malus aggiornata." : "Regola malus aggiunta.");
+
+    setEditingRuleId(null);
+    setRuleForm({ malusTypeId: "", description: "" });
+  };
+
+  const deleteRule = (ruleId) => {
+    if (!selectedRuleUser) {
+      return;
+    }
+
+    updateState((current) => ({
+      ...current,
+      users: current.users.map((user) =>
+        user.id === selectedRuleUser.id
+          ? {
+              ...user,
+              malusRules: user.malusRules.filter((rule) => rule.id !== ruleId),
+            }
+          : user,
+      ),
+    }), "Regola malus eliminata.");
+  };
+
+  const startEditTransaction = (transaction) => {
+    setEditingTransactionId(transaction.id);
+    setTransactionForm({
+      userId: String(transaction.userId),
+      malusTypeId: transaction.malusTypeId,
+      description: transaction.description,
+    });
+  };
+
+  const submitAdminTransaction = (event) => {
+    event.preventDefault();
+    const malusType = state.malusTypes.find((item) => item.id === transactionForm.malusTypeId);
+    if (!malusType || !transactionForm.userId || !currentUser) {
+      return;
+    }
+
+    updateState((current) => {
+      if (editingTransactionId) {
+        return {
+          ...current,
+          transactions: current.transactions.map((transaction) =>
+            transaction.id === editingTransactionId
+              ? {
+                  ...transaction,
+                  userId: Number(transactionForm.userId),
+                  malusTypeId: malusType.id,
+                  amount: Number(malusType.amount),
+                  description: transactionForm.description.trim(),
+                }
+              : transaction,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        transactions: [
+          {
+            id: current.nextIds.transaction,
+            userId: Number(transactionForm.userId),
+            createdBy: currentUser.id,
+            type: "malus",
+            malusTypeId: malusType.id,
+            amount: Number(malusType.amount),
+            description: transactionForm.description.trim(),
+            cancelled: false,
+            timestamp: new Date().toISOString(),
+          },
+          ...current.transactions,
+        ],
+        nextIds: {
+          ...current.nextIds,
+          transaction: current.nextIds.transaction + 1,
+        },
+      };
+    }, editingTransactionId ? "Transazione aggiornata." : "Transazione aggiunta.");
+
+    setEditingTransactionId(null);
+    setTransactionForm(emptyTransactionForm);
+  };
+
+  const toggleCancelled = (transactionId) => {
+    updateState((current) => ({
+      ...current,
+      transactions: current.transactions.map((transaction) =>
+        transaction.id === transactionId
+          ? { ...transaction, cancelled: !transaction.cancelled }
+          : transaction,
+      ),
+    }), "Stato transazione aggiornato.");
+  };
+
+  const deleteTransaction = (transactionId) => {
+    updateState((current) => ({
+      ...current,
+      transactions: current.transactions.filter((transaction) => transaction.id !== transactionId),
+    }), "Transazione eliminata.");
+  };
+
+  if (activeView === "login") {
+    return (
+      <div className="app-shell login-shell">
+        <div className="login-card">
+          <p className="eyebrow">React rebuild</p>
+          <h1>Fanta W2D</h1>
+          <p className="muted">
+            Stessa base visuale della versione originale, dati locali modificabili dal pannello admin e flusso centrato solo sui malus.
+          </p>
+          <form onSubmit={login} className="stack">
+            <label>
+              Username
+              <input
+                value={loginForm.username}
+                onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
+              />
+            </label>
+            {loginError ? <p className="error-text">{loginError}</p> : null}
+            <button className="btn btn-primary" type="submit">
+              Accedi
+            </button>
+          </form>
+          <div className="credential-box">
+            <strong>Credenziali demo</strong>
+            <p>`admin / admin123` per accesso admin</p>
+            <p>`nomeutente / user123` per utenti standard</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const recentTransactions = state.transactions.slice(0, 6);
+
+  return (
+    <div className="app-shell">
+      {notice ? <div className="notification success">{notice}</div> : null}
+      <div className="container">
+        <header className="app-header">
+          <div>
+            <p className="eyebrow">Fanta W2D</p>
+            <h1>Salvadanaio malus</h1>
+          </div>
+          <div className="user-strip">
+            <div>
+              <strong>{currentUser.displayName}</strong>
+              <p className="muted">{currentUser.role === "admin" ? "Accesso amministratore" : "Utente standard"}</p>
+            </div>
+            <button className="btn btn-secondary" type="button" onClick={logout}>
+              Logout
+            </button>
+          </div>
+        </header>
+
+        <nav className="nav-tabs">
+          <button className={activeView === "dashboard" ? "active" : ""} onClick={() => switchView("dashboard")}>
+            Home
+          </button>
+          <button className={activeView === "leaderboard" ? "active" : ""} onClick={() => switchView("leaderboard")}>
+            Classifica
+          </button>
+          <button className={activeView === "transactions" ? "active" : ""} onClick={() => switchView("transactions")}>
+            Transazioni
+          </button>
+          <button className={activeView === "profile" ? "active" : ""} onClick={() => switchView("profile")}>
+            Profilo
+          </button>
+          {isAdmin ? (
+            <button className={activeView === "admin" ? "active" : ""} onClick={() => switchView("admin")}>
+              Admin
+            </button>
+          ) : null}
+        </nav>
+
+        {activeView === "dashboard" ? (
+          <section className="grid two-cols">
+            <article className="card balance-card">
+              <h2>Saldo attuale</h2>
+              <div className={`amount ${currentUser.balance < 0 ? "negative" : ""}`}>
+                {formatCurrency(currentUser.balance)}
+              </div>
+              <p className="muted">
+                Il saldo dipende solo dai malus attivi. Le correzioni passano dal pannello admin.
+              </p>
+            </article>
+
+            <article className="card">
+              <h2>Assegna malus</h2>
+              <form className="stack" onSubmit={submitQuickMalus}>
+                <label>
+                  Utente
+                  <select
+                    value={transactionForm.userId}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, userId: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value="">Seleziona</option>
+                    {state.users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Tipo malus
+                  <select
+                    value={transactionForm.malusTypeId}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value="">Seleziona</option>
+                    {state.malusTypes.map((malus) => (
+                      <option key={malus.id} value={malus.id}>
+                        {malus.name} - {formatCurrency(malus.amount)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Descrizione
+                  <textarea
+                    rows="3"
+                    value={transactionForm.description}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    placeholder="Motivo del malus"
+                    required
+                  />
+                </label>
+                <button className="btn btn-primary" type="submit">
+                  Registra malus
+                </button>
+              </form>
+            </article>
+
+            <article className="card span-2">
+              <div className="section-head">
+                <h2>Ultime transazioni</h2>
+                <button className="btn btn-secondary" type="button" onClick={() => switchView("transactions")}>
+                  Vedi tutto
+                </button>
+              </div>
+              <div className="transaction-list">
+                {recentTransactions.map((transaction) => (
+                  <TransactionItem
+                    key={transaction.id}
+                    transaction={transaction}
+                    users={state.users}
+                    malusTypes={state.malusTypes}
+                  />
+                ))}
+              </div>
+            </article>
+          </section>
+        ) : null}
+
+        {activeView === "leaderboard" ? (
+          <section className="card">
+            <h2>Classifica</h2>
+            <p className="muted">Utenti con saldo peggiore in cima.</p>
+            <div className="leaderboard-list">
+              {[...state.users]
+                .sort((a, b) => a.balance - b.balance)
+                .map((user, index) => (
+                  <div className={`leaderboard-row ${user.id === currentUser.id ? "current-user" : ""}`} key={user.id}>
+                    <div className="rank">#{index + 1}</div>
+                    <div>
+                      <strong>{user.displayName}</strong>
+                      <p className="muted">{user.username}</p>
+                    </div>
+                    <div className={`balance-pill ${user.balance < 0 ? "negative" : ""}`}>
+                      {formatCurrency(user.balance)}
+                    </div>
+                    <div className="badge badge-available">{user.role === "admin" ? "Admin" : "User"}</div>
+                  </div>
+                ))}
+            </div>
+          </section>
+        ) : null}
+
+        {activeView === "transactions" ? (
+          <section className="card">
+            <h2>Tutte le transazioni</h2>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Utente</th>
+                    <th>Malus</th>
+                    <th>Importo</th>
+                    <th>Descrizione</th>
+                    <th>Creato da</th>
+                    <th>Data</th>
+                    <th>Stato</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.transactions.map((transaction) => (
+                    <tr key={transaction.id} className={transaction.cancelled ? "cancelled" : ""}>
+                      <td>{transaction.id}</td>
+                      <td>{labelForUser(state.users, transaction.userId)}</td>
+                      <td>{labelForMalus(state.malusTypes, transaction.malusTypeId)}</td>
+                      <td className="negative">-{formatCurrency(transaction.amount)}</td>
+                      <td>{transaction.description}</td>
+                      <td>{labelForUser(state.users, transaction.createdBy)}</td>
+                      <td>{formatDate(transaction.timestamp)}</td>
+                      <td>{transaction.cancelled ? "Annullato" : "Attivo"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        {activeView === "profile" ? (
+          <section className="grid two-cols">
+            <article className="card">
+              <h2>Profilo</h2>
+              <div className="stack compact">
+                <div className="info-row">
+                  <span>Nome</span>
+                  <strong>{currentUser.displayName}</strong>
+                </div>
+                <div className="info-row">
+                  <span>Username</span>
+                  <strong>{currentUser.username}</strong>
+                </div>
+                <div className="info-row">
+                  <span>Email</span>
+                  <strong>{currentUser.email || "-"}</strong>
+                </div>
+                <div className="info-row">
+                  <span>Ruolo</span>
+                  <strong>{currentUser.role}</strong>
+                </div>
+              </div>
+            </article>
+            <article className="card">
+              <h2>Regole malus personali</h2>
+              <div className="stack compact">
+                {currentUser.malusRules.length ? (
+                  currentUser.malusRules.map((rule) => (
+                    <div className="rule-card" key={rule.id}>
+                      <strong>{labelForMalus(state.malusTypes, rule.malusTypeId)}</strong>
+                      <p>{rule.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted">Nessuna regola personalizzata.</p>
+                )}
+              </div>
+            </article>
+          </section>
+        ) : null}
+
+        {activeView === "admin" && isAdmin ? (
+          <section className="admin-grid">
+            <article className="card">
+              <div className="section-head">
+                <h2>Utenti</h2>
+                <span className="muted">L'admin gestisce correzioni e controlli manuali.</span>
+              </div>
+              <form className="stack" onSubmit={submitUser}>
+                <label>
+                  Nome visualizzato
+                  <input
+                    value={userForm.displayName}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, displayName: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Username
+                  <input
+                    value={userForm.username}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, username: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    value={userForm.password}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, password: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    value={userForm.email}
+                    onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  Ruolo
+                  <select
+                    value={userForm.role}
+                    onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <div className="actions-row">
+                  <button className="btn btn-primary" type="submit">
+                    {editingUserId ? "Salva utente" : "Aggiungi utente"}
+                  </button>
+                  {editingUserId ? (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={() => {
+                        setEditingUserId(null);
+                        setUserForm(emptyUserForm);
+                      }}
+                    >
+                      Annulla
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+              <div className="stack compact">
+                {state.users.map((user) => (
+                  <div className="admin-item" key={user.id}>
+                    <div>
+                      <strong>{user.displayName}</strong>
+                      <p className="muted">
+                        {user.username} · {user.role} · {formatCurrency(user.balance)}
+                      </p>
+                    </div>
+                    <div className="actions-row">
+                      <button className="btn btn-accent" type="button" onClick={() => startEditUser(user)}>
+                        Modifica
+                      </button>
+                      <button className="btn btn-danger" type="button" onClick={() => deleteUser(user.id)}>
+                        Elimina
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="card">
+              <h2>Tipi di malus</h2>
+              <form className="stack" onSubmit={submitMalusType}>
+                <label>
+                  Nome
+                  <input
+                    value={malusForm.name}
+                    onChange={(event) => setMalusForm((current) => ({ ...current, name: event.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Importo
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={malusForm.amount}
+                    onChange={(event) => setMalusForm((current) => ({ ...current, amount: event.target.value }))}
+                    required
+                  />
+                </label>
+                <div className="actions-row">
+                  <button className="btn btn-primary" type="submit">
+                    {editingMalusId ? "Salva malus" : "Aggiungi malus"}
+                  </button>
+                  {editingMalusId ? (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={() => {
+                        setEditingMalusId(null);
+                        setMalusForm({ name: "", amount: "0.50" });
+                      }}
+                    >
+                      Annulla
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+              <div className="stack compact">
+                {state.malusTypes.map((malus) => (
+                  <div className="admin-item" key={malus.id}>
+                    <div>
+                      <strong>{malus.name}</strong>
+                      <p className="muted">{formatCurrency(malus.amount)}</p>
+                    </div>
+                    <div className="actions-row">
+                      <button
+                        className="btn btn-accent"
+                        type="button"
+                        onClick={() => {
+                          setEditingMalusId(malus.id);
+                          setMalusForm({ name: malus.name, amount: String(malus.amount) });
+                        }}
+                      >
+                        Modifica
+                      </button>
+                      <button className="btn btn-danger" type="button" onClick={() => deleteMalusType(malus.id)}>
+                        Elimina
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="card">
+              <h2>Regole malus per utente</h2>
+              <label>
+                Utente
+                <select
+                  value={selectedRuleUser?.id ?? ""}
+                  onChange={(event) => setAdminRuleUserId(Number(event.target.value))}
+                >
+                  {state.users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <form className="stack top-gap" onSubmit={submitRule}>
+                <label>
+                  Tipo malus
+                  <select
+                    value={ruleForm.malusTypeId}
+                    onChange={(event) => setRuleForm((current) => ({ ...current, malusTypeId: event.target.value }))}
+                    required
+                  >
+                    <option value="">Seleziona</option>
+                    {state.malusTypes.map((malus) => (
+                      <option key={malus.id} value={malus.id}>
+                        {malus.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Descrizione
+                  <textarea
+                    rows="3"
+                    value={ruleForm.description}
+                    onChange={(event) => setRuleForm((current) => ({ ...current, description: event.target.value }))}
+                    required
+                  />
+                </label>
+                <div className="actions-row">
+                  <button className="btn btn-primary" type="submit">
+                    {editingRuleId ? "Salva regola" : "Aggiungi regola"}
+                  </button>
+                  {editingRuleId ? (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={() => {
+                        setEditingRuleId(null);
+                        setRuleForm({ malusTypeId: "", description: "" });
+                      }}
+                    >
+                      Annulla
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+              <div className="stack compact">
+                {(selectedRuleUser?.malusRules || []).map((rule) => (
+                  <div className="admin-item" key={rule.id}>
+                    <div>
+                      <strong>{labelForMalus(state.malusTypes, rule.malusTypeId)}</strong>
+                      <p className="muted">{rule.description}</p>
+                    </div>
+                    <div className="actions-row">
+                      <button className="btn btn-accent" type="button" onClick={() => startEditRule(rule)}>
+                        Modifica
+                      </button>
+                      <button className="btn btn-danger" type="button" onClick={() => deleteRule(rule.id)}>
+                        Elimina
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="card">
+              <div className="section-head">
+                <h2>Transazioni</h2>
+                <button className="btn btn-danger" type="button" onClick={resetData}>
+                  Reset dati demo
+                </button>
+              </div>
+              <form className="stack" onSubmit={submitAdminTransaction}>
+                <label>
+                  Utente
+                  <select
+                    value={transactionForm.userId}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, userId: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value="">Seleziona</option>
+                    {state.users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Tipo malus
+                  <select
+                    value={transactionForm.malusTypeId}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value="">Seleziona</option>
+                    {state.malusTypes.map((malus) => (
+                      <option key={malus.id} value={malus.id}>
+                        {malus.name} - {formatCurrency(malus.amount)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Descrizione
+                  <textarea
+                    rows="3"
+                    value={transactionForm.description}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <div className="actions-row">
+                  <button className="btn btn-primary" type="submit">
+                    {editingTransactionId ? "Salva transazione" : "Aggiungi transazione"}
+                  </button>
+                  {editingTransactionId ? (
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      onClick={() => {
+                        setEditingTransactionId(null);
+                        setTransactionForm(emptyTransactionForm);
+                      }}
+                    >
+                      Annulla
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+              <div className="stack compact">
+                {state.transactions.map((transaction) => (
+                  <div className="admin-item" key={transaction.id}>
+                    <div>
+                      <strong>
+                        {labelForUser(state.users, transaction.userId)} ·{" "}
+                        {labelForMalus(state.malusTypes, transaction.malusTypeId)}
+                      </strong>
+                      <p className="muted">
+                        -{formatCurrency(transaction.amount)} · {transaction.description} ·{" "}
+                        {formatDate(transaction.timestamp)}
+                      </p>
+                    </div>
+                    <div className="actions-row">
+                      <button className="btn btn-accent" type="button" onClick={() => startEditTransaction(transaction)}>
+                        Modifica
+                      </button>
+                      <button className="btn btn-secondary" type="button" onClick={() => toggleCancelled(transaction.id)}>
+                        {transaction.cancelled ? "Riattiva" : "Annulla"}
+                      </button>
+                      <button className="btn btn-danger" type="button" onClick={() => deleteTransaction(transaction.id)}>
+                        Elimina
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </section>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TransactionItem({ transaction, users, malusTypes }) {
+  return (
+    <div className={`transaction-item ${transaction.cancelled ? "cancelled" : ""}`}>
+      <div>
+        <strong>{labelForUser(users, transaction.userId)}</strong>
+        <p className="muted">
+          {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
+        </p>
+      </div>
+      <div className="transaction-meta">
+        <span className="negative">-{formatCurrency(transaction.amount)}</span>
+        <small>{formatDate(transaction.timestamp)}</small>
+      </div>
+    </div>
+  );
+}
+
+const labelForUser = (users, userId) => users.find((user) => user.id === userId)?.displayName || "Utente";
+const labelForMalus = (malusTypes, malusTypeId) =>
+  malusTypes.find((malus) => malus.id === malusTypeId)?.name || "Malus";
+const formatDate = (value) =>
+  new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+
+export default App;

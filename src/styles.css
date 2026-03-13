@@ -1,0 +1,396 @@
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #e74c3c;
+  --accent-color: #f39c12;
+  --text-color: #333;
+  --light-bg: #f5f9fa;
+  --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --danger-color: #e74c3c;
+  --success-color: #2ecc71;
+  --border-color: rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(52, 152, 219, 0.16), transparent 35%),
+    linear-gradient(180deg, #f8fbfd 0%, var(--light-bg) 100%);
+  color: var(--text-color);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.app-header,
+.login-card,
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  border-top: 4px solid var(--primary-color);
+}
+
+.app-header {
+  padding: 24px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+
+.app-header h1,
+.login-card h1,
+.card h2 {
+  margin: 0;
+  color: var(--primary-color);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.78rem;
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+.user-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.nav-tabs button {
+  background: white;
+  color: var(--text-color);
+  padding: 12px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.nav-tabs button.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.card {
+  padding: 24px;
+}
+
+.grid.two-cols,
+.admin-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid.two-cols {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.balance-card {
+  text-align: center;
+}
+
+.amount {
+  font-size: 2.8rem;
+  font-weight: 800;
+  margin: 16px 0;
+  color: var(--primary-color);
+}
+
+.negative {
+  color: var(--danger-color);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.14);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn-secondary {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.btn-accent {
+  background: var(--accent-color);
+  color: white;
+}
+
+.btn-danger {
+  background: #1f2937;
+  color: white;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stack.compact {
+  gap: 10px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: white;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.section-head,
+.actions-row,
+.transaction-item,
+.admin-item,
+.leaderboard-row,
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.actions-row {
+  flex-wrap: wrap;
+}
+
+.muted {
+  margin: 0;
+  color: #667085;
+}
+
+.transaction-list,
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transaction-item,
+.admin-item,
+.leaderboard-row,
+.rule-card,
+.credential-box {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: #fff;
+}
+
+.transaction-item.cancelled,
+tr.cancelled {
+  opacity: 0.6;
+}
+
+.transaction-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.rank {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(52, 152, 219, 0.12);
+  font-weight: 800;
+  color: var(--primary-color);
+}
+
+.balance-pill,
+.badge {
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.balance-pill {
+  background: rgba(52, 152, 219, 0.12);
+  color: var(--primary-color);
+}
+
+.balance-pill.negative {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--danger-color);
+}
+
+.badge-available {
+  background: rgba(46, 204, 113, 0.12);
+  color: #17854b;
+}
+
+.current-user {
+  border: 2px solid rgba(52, 152, 219, 0.24);
+}
+
+.notification {
+  position: sticky;
+  top: 12px;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 700;
+}
+
+.notification.success {
+  background: linear-gradient(90deg, var(--success-color), #34d399);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+th {
+  color: white;
+  background: var(--primary-color);
+}
+
+.login-shell {
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(100%, 520px);
+  padding: 32px;
+}
+
+.credential-box {
+  margin-top: 18px;
+  background: rgba(52, 152, 219, 0.05);
+}
+
+.error-text {
+  margin: 0;
+  color: var(--danger-color);
+  font-weight: 700;
+}
+
+.top-gap {
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .grid.two-cols,
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2 {
+    grid-column: span 1;
+  }
+
+  .app-header,
+  .user-strip,
+  .leaderboard-row,
+  .transaction-item,
+  .admin-item,
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .transaction-meta {
+    align-items: flex-start;
+  }
+}
