@@ -138,6 +138,7 @@ export const createInitialState = () => {
     currentView: "dashboard",
     users,
     transactions: sampleTransactions,
+    proposals: [],
     malusTypes: [
       { id: "malus-1", name: "Malus #1", amount: 0.5 },
       { id: "malus-2", name: "Malus #2", amount: 1 },
@@ -148,6 +149,7 @@ export const createInitialState = () => {
       transaction: sampleTransactions.length + 1,
       rule: nextRuleId,
       malusType: 4,
+      proposal: 1,
     },
   };
 };

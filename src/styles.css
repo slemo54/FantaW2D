@@ -250,7 +250,8 @@ textarea {
 .admin-item,
 .leaderboard-row,
 .rule-card,
-.credential-box {
+.credential-box,
+.proposal-card {
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 14px 16px;
@@ -368,6 +369,22 @@ th {
 
 .top-gap {
   margin-top: 16px;
+}
+
+.proposal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.vote-count {
+  background: rgba(243, 156, 18, 0.12);
+  color: #8a5a00;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {

@@ -17,6 +17,12 @@ const emptyTransactionForm = {
   description: "",
 };
 
+const emptyProposalForm = {
+  proposerName: "",
+  targetName: "",
+  description: "",
+};
+
 function App() {
   const [state, setState] = useState(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -42,6 +48,8 @@ function App() {
   const [editingMalusId, setEditingMalusId] = useState(null);
   const [transactionForm, setTransactionForm] = useState(emptyTransactionForm);
   const [editingTransactionId, setEditingTransactionId] = useState(null);
+  const [proposalForm, setProposalForm] = useState(emptyProposalForm);
+  const [voteName, setVoteName] = useState("");
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -63,8 +71,13 @@ function App() {
     state.users.find((user) => user.role !== "admin") ??
     state.users[0];
 
-  const activeView =
-    !currentUser ? "login" : !isAdmin && state.currentView === "admin" ? "dashboard" : state.currentView;
+  const activeView = !currentUser
+    ? state.currentView === "public"
+      ? "public"
+      : "login"
+    : !isAdmin && state.currentView === "admin"
+      ? "dashboard"
+      : state.currentView;
 
   const updateState = (updater, message) => {
     setState((current) => deriveState(typeof updater === "function" ? updater(current) : updater));
@@ -155,6 +168,65 @@ function App() {
     }), "Malus registrato.");
 
     setTransactionForm(emptyTransactionForm);
+  };
+
+  const submitProposal = (event) => {
+    event.preventDefault();
+    const proposerName = proposalForm.proposerName.trim();
+    const targetName = proposalForm.targetName.trim();
+    const description = proposalForm.description.trim();
+
+    if (!proposerName || !targetName || !description) {
+      setNotice("Compila tutti i campi della proposta.");
+      return;
+    }
+
+    updateState((current) => ({
+      ...current,
+      proposals: [
+        {
+          id: current.nextIds.proposal,
+          proposerName,
+          targetName,
+          description,
+          createdAt: new Date().toISOString(),
+          votes: [],
+        },
+        ...current.proposals,
+      ],
+      nextIds: {
+        ...current.nextIds,
+        proposal: current.nextIds.proposal + 1,
+      },
+    }), "Proposta inserita. Ora si puo votare.");
+
+    setProposalForm(emptyProposalForm);
+  };
+
+  const voteProposal = (proposalId) => {
+    const voter = voteName.trim().toLowerCase();
+    if (!voter) {
+      setNotice("Inserisci il tuo nome per votare.");
+      return;
+    }
+
+    updateState((current) => ({
+      ...current,
+      proposals: current.proposals.map((proposal) => {
+        if (proposal.id !== proposalId) {
+          return proposal;
+        }
+
+        if (proposal.votes.includes(voter)) {
+          return proposal;
+        }
+
+        return {
+          ...proposal,
+          votes: [...proposal.votes, voter],
+        };
+      }),
+    }), "Voto registrato.");
   };
 
   const startEditUser = (user) => {
@@ -475,6 +547,9 @@ function App() {
             <p>`admin / admin123` per accesso admin</p>
             <p>`nomeutente / user123` per utenti standard</p>
           </div>
+          <button className="btn btn-accent top-gap" type="button" onClick={() => switchView("public")}>
+            Vai alla bacheca pubblica malus
+          </button>
         </div>
       </div>
     );
@@ -514,6 +589,9 @@ function App() {
           </button>
           <button className={activeView === "profile" ? "active" : ""} onClick={() => switchView("profile")}>
             Profilo
+          </button>
+          <button className={activeView === "public" ? "active" : ""} onClick={() => switchView("public")}>
+            Proposte malus
           </button>
           {isAdmin ? (
             <button className={activeView === "admin" ? "active" : ""} onClick={() => switchView("admin")}>
@@ -705,6 +783,89 @@ function App() {
                   ))
                 ) : (
                   <p className="muted">Nessuna regola personalizzata.</p>
+                )}
+              </div>
+            </article>
+          </section>
+        ) : null}
+
+        {activeView === "public" ? (
+          <section className="grid two-cols">
+            <article className="card">
+              <h2>Proponi un malus</h2>
+              <p className="muted">Nessun accesso richiesto. Inserisci solo il tuo nome.</p>
+              <form className="stack" onSubmit={submitProposal}>
+                <label>
+                  Il tuo nome
+                  <input
+                    value={proposalForm.proposerName}
+                    onChange={(event) =>
+                      setProposalForm((current) => ({ ...current, proposerName: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Nome della persona
+                  <input
+                    value={proposalForm.targetName}
+                    onChange={(event) =>
+                      setProposalForm((current) => ({ ...current, targetName: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Descrizione del malus
+                  <textarea
+                    rows="3"
+                    value={proposalForm.description}
+                    onChange={(event) =>
+                      setProposalForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <button className="btn btn-primary" type="submit">
+                  Invia proposta
+                </button>
+              </form>
+            </article>
+
+            <article className="card">
+              <h2>Vota le proposte</h2>
+              <label>
+                Il tuo nome (per votare)
+                <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
+              </label>
+              <div className="stack top-gap">
+                {state.proposals.length ? (
+                  [...state.proposals]
+                    .sort((a, b) => b.votes.length - a.votes.length)
+                    .map((proposal) => (
+                      <div className="proposal-card" key={proposal.id}>
+                        <div className="proposal-header">
+                          <div>
+                            <strong>{proposal.targetName}</strong>
+                            <p className="muted">
+                              Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
+                            </p>
+                          </div>
+                          <div className="vote-count">{proposal.votes.length} voti</div>
+                        </div>
+                        <p>{proposal.description}</p>
+                        <button
+                          className="btn btn-accent"
+                          type="button"
+                          onClick={() => voteProposal(proposal.id)}
+                          disabled={!voteName.trim() || proposal.votes.includes(voteName.trim().toLowerCase())}
+                        >
+                          {proposal.votes.includes(voteName.trim().toLowerCase()) ? "Hai gia votato" : "Vota"}
+                        </button>
+                      </div>
+                    ))
+                ) : (
+                  <p className="muted">Nessuna proposta ancora.</p>
                 )}
               </div>
             </article>
