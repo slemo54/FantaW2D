@@ -512,6 +512,106 @@ function App() {
     }), "Transazione eliminata.");
   };
 
+  if (activeView === "public" && !currentUser) {
+    return (
+      <div className="app-shell">
+        {notice ? <div className="notification success">{notice}</div> : null}
+        <div className="container">
+          <header className="app-header">
+            <div>
+              <p className="eyebrow">Bacheca pubblica</p>
+              <h1>Proposte malus</h1>
+            </div>
+            <button className="btn btn-secondary" type="button" onClick={() => switchView("login")}>
+              Torna al login
+            </button>
+          </header>
+
+          <section className="grid two-cols">
+            <article className="card">
+              <h2>Proponi un malus</h2>
+              <p className="muted">Nessun accesso richiesto. Inserisci solo il tuo nome.</p>
+              <form className="stack" onSubmit={submitProposal}>
+                <label>
+                  Il tuo nome
+                  <input
+                    value={proposalForm.proposerName}
+                    onChange={(event) =>
+                      setProposalForm((current) => ({ ...current, proposerName: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Nome della persona
+                  <input
+                    value={proposalForm.targetName}
+                    onChange={(event) =>
+                      setProposalForm((current) => ({ ...current, targetName: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  Descrizione del malus
+                  <textarea
+                    rows="3"
+                    value={proposalForm.description}
+                    onChange={(event) =>
+                      setProposalForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+                <button className="btn btn-primary" type="submit">
+                  Invia proposta
+                </button>
+              </form>
+            </article>
+
+            <article className="card">
+              <h2>Vota le proposte</h2>
+              <label>
+                Il tuo nome (per votare)
+                <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
+              </label>
+              <div className="stack top-gap">
+                {state.proposals.length ? (
+                  [...state.proposals]
+                    .sort((a, b) => b.votes.length - a.votes.length)
+                    .map((proposal) => (
+                      <div className="proposal-card" key={proposal.id}>
+                        <div className="proposal-header">
+                          <div>
+                            <strong>{proposal.targetName}</strong>
+                            <p className="muted">
+                              Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
+                            </p>
+                          </div>
+                          <div className="vote-count">{proposal.votes.length} voti</div>
+                        </div>
+                        <p>{proposal.description}</p>
+                        <button
+                          className="btn btn-accent"
+                          type="button"
+                          onClick={() => voteProposal(proposal.id)}
+                          disabled={!voteName.trim() || proposal.votes.includes(voteName.trim().toLowerCase())}
+                        >
+                          {proposal.votes.includes(voteName.trim().toLowerCase()) ? "Hai gia votato" : "Vota"}
+                        </button>
+                      </div>
+                    ))
+                ) : (
+                  <p className="muted">Nessuna proposta ancora.</p>
+                )}
+              </div>
+            </article>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   if (activeView === "login") {
     return (
       <div className="app-shell login-shell">
@@ -566,15 +666,17 @@ function App() {
             <p className="eyebrow">Fanta W2D</p>
             <h1>Salvadanaio malus</h1>
           </div>
-          <div className="user-strip">
-            <div>
-              <strong>{currentUser.displayName}</strong>
-              <p className="muted">{currentUser.role === "admin" ? "Accesso amministratore" : "Utente standard"}</p>
+          {currentUser ? (
+            <div className="user-strip">
+              <div>
+                <strong>{currentUser.displayName}</strong>
+                <p className="muted">{currentUser.role === "admin" ? "Accesso amministratore" : "Utente standard"}</p>
+              </div>
+              <button className="btn btn-secondary" type="button" onClick={logout}>
+                Logout
+              </button>
             </div>
-            <button className="btn btn-secondary" type="button" onClick={logout}>
-              Logout
-            </button>
-          </div>
+          ) : null}
         </header>
 
         <nav className="nav-tabs">

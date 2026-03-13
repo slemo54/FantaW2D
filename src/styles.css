@@ -356,6 +356,10 @@ th {
   padding: 32px;
 }
 
+.login-card .btn {
+  width: 100%;
+}
+
 .credential-box {
   margin-top: 18px;
   background: rgba(52, 152, 219, 0.05);
