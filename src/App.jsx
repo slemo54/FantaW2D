@@ -41,7 +41,7 @@ function App() {
       return deriveState(createInitialState());
     }
   });
-  const [loginForm, setLoginForm] = useState({ username: "admin", password: "admin123" });
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [notice, setNotice] = useState("");
   const [userForm, setUserForm] = useState(emptyUserForm);
@@ -743,6 +743,7 @@ function App() {
             <label>
               Username
               <input
+                placeholder="Inserisci username"
                 value={loginForm.username}
                 onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
               />
@@ -751,6 +752,7 @@ function App() {
               Password
               <input
                 type="password"
+                placeholder="Inserisci password"
                 value={loginForm.password}
                 onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
               />
@@ -760,11 +762,6 @@ function App() {
               Accedi
             </button>
           </form>
-          <div className="credential-box">
-            <strong>Credenziali demo</strong>
-            <p>`admin / admin123` per accesso admin</p>
-            <p>`nomeutente / user123` per utenti standard</p>
-          </div>
           <button className="btn btn-accent top-gap" type="button" onClick={() => switchView("public")}>
             Vai alla bacheca pubblica malus
           </button>
