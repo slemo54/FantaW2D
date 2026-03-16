@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { createInitialState, deriveState, formatCurrency } from "./seed";
 
 const STORAGE_KEY = "fantaw2d-react-state-v1";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase =
+  SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 const emptyUserForm = {
   displayName: "",
@@ -50,6 +55,9 @@ function App() {
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [proposalForm, setProposalForm] = useState(emptyProposalForm);
   const [voteName, setVoteName] = useState("");
+  const [publicProposals, setPublicProposals] = useState([]);
+  const [publicLoading, setPublicLoading] = useState(false);
+  const [publicError, setPublicError] = useState("");
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -63,6 +71,65 @@ function App() {
     const timeout = window.setTimeout(() => setNotice(""), 3000);
     return () => window.clearTimeout(timeout);
   }, [notice]);
+
+  const voteNameLower = useMemo(() => voteName.trim().toLowerCase(), [voteName]);
+
+  const loadPublicProposals = async () => {
+    if (!supabase) {
+      setPublicProposals(state.proposals);
+      return;
+    }
+
+    setPublicLoading(true);
+    setPublicError("");
+
+    const { data: proposalsData, error: proposalsError } = await supabase
+      .from("proposals")
+      .select("id, proposer_name, target_name, description, created_at")
+      .order("created_at", { ascending: false });
+
+    if (proposalsError) {
+      setPublicError("Errore nel caricamento delle proposte.");
+      setPublicLoading(false);
+      return;
+    }
+
+    const { data: votesData, error: votesError } = await supabase
+      .from("proposal_votes")
+      .select("proposal_id, voter_name_lower");
+
+    if (votesError) {
+      setPublicError("Errore nel caricamento dei voti.");
+      setPublicLoading(false);
+      return;
+    }
+
+    const voteMap = new Map();
+    votesData.forEach((vote) => {
+      if (!voteMap.has(vote.proposal_id)) {
+        voteMap.set(vote.proposal_id, []);
+      }
+      voteMap.get(vote.proposal_id).push(vote.voter_name_lower);
+    });
+
+    const merged = proposalsData.map((proposal) => ({
+      id: proposal.id,
+      proposerName: proposal.proposer_name,
+      targetName: proposal.target_name,
+      description: proposal.description,
+      createdAt: proposal.created_at,
+      votes: voteMap.get(proposal.id) || [],
+    }));
+
+    setPublicProposals(merged);
+    setPublicLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeView === "public") {
+      loadPublicProposals();
+    }
+  }, [activeView]);
 
   const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
   const isAdmin = currentUser?.role === "admin";
@@ -181,52 +248,101 @@ function App() {
       return;
     }
 
-    updateState((current) => ({
-      ...current,
-      proposals: [
-        {
-          id: current.nextIds.proposal,
-          proposerName,
-          targetName,
-          description,
-          createdAt: new Date().toISOString(),
-          votes: [],
+    const submitLocalProposal = () => {
+      updateState((current) => ({
+        ...current,
+        proposals: [
+          {
+            id: current.nextIds.proposal,
+            proposerName,
+            targetName,
+            description,
+            createdAt: new Date().toISOString(),
+            votes: [],
+          },
+          ...current.proposals,
+        ],
+        nextIds: {
+          ...current.nextIds,
+          proposal: current.nextIds.proposal + 1,
         },
-        ...current.proposals,
-      ],
-      nextIds: {
-        ...current.nextIds,
-        proposal: current.nextIds.proposal + 1,
-      },
-    }), "Proposta inserita. Ora si puo votare.");
+      }), "Proposta inserita. Ora si puo votare.");
+      setProposalForm(emptyProposalForm);
+    };
 
-    setProposalForm(emptyProposalForm);
+    if (!supabase) {
+      submitLocalProposal();
+      return;
+    }
+
+    (async () => {
+      const { error } = await supabase.from("proposals").insert({
+        proposer_name: proposerName,
+        target_name: targetName,
+        description,
+      });
+
+      if (error) {
+        setNotice("Errore nel salvataggio della proposta.");
+        return;
+      }
+
+      setProposalForm(emptyProposalForm);
+      setNotice("Proposta inserita. Ora si puo votare.");
+      loadPublicProposals();
+    })();
   };
 
   const voteProposal = (proposalId) => {
-    const voter = voteName.trim().toLowerCase();
-    if (!voter) {
+    if (!voteNameLower) {
       setNotice("Inserisci il tuo nome per votare.");
       return;
     }
 
-    updateState((current) => ({
-      ...current,
-      proposals: current.proposals.map((proposal) => {
-        if (proposal.id !== proposalId) {
-          return proposal;
-        }
+    const voteLocalProposal = () => {
+      updateState((current) => ({
+        ...current,
+        proposals: current.proposals.map((proposal) => {
+          if (proposal.id !== proposalId) {
+            return proposal;
+          }
 
-        if (proposal.votes.includes(voter)) {
-          return proposal;
-        }
+          if (proposal.votes.includes(voteNameLower)) {
+            return proposal;
+          }
 
-        return {
-          ...proposal,
-          votes: [...proposal.votes, voter],
-        };
-      }),
-    }), "Voto registrato.");
+          return {
+            ...proposal,
+            votes: [...proposal.votes, voteNameLower],
+          };
+        }),
+      }), "Voto registrato.");
+    };
+
+    if (!supabase) {
+      voteLocalProposal();
+      return;
+    }
+
+    (async () => {
+      const { error } = await supabase.from("proposal_votes").insert({
+        proposal_id: proposalId,
+        voter_name: voteName.trim(),
+        voter_name_lower: voteNameLower,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          setNotice("Hai gia votato questa proposta.");
+          return;
+        }
+        setNotice("Errore nel voto.");
+        return;
+      }
+
+      setNotice("Voto registrato.");
+      loadPublicProposals();
+    })();
   };
 
   const startEditUser = (user) => {
@@ -576,8 +692,10 @@ function App() {
                 <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
               </label>
               <div className="stack top-gap">
-                {state.proposals.length ? (
-                  [...state.proposals]
+                {publicLoading ? <p className="muted">Caricamento...</p> : null}
+                {publicError ? <p className="error-text">{publicError}</p> : null}
+                {!publicLoading && !publicError && publicProposals.length ? (
+                  [...publicProposals]
                     .sort((a, b) => b.votes.length - a.votes.length)
                     .map((proposal) => (
                       <div className="proposal-card" key={proposal.id}>
@@ -960,14 +1078,14 @@ function App() {
                           className="btn btn-accent"
                           type="button"
                           onClick={() => voteProposal(proposal.id)}
-                          disabled={!voteName.trim() || proposal.votes.includes(voteName.trim().toLowerCase())}
+                          disabled={!voteNameLower || proposal.votes.includes(voteNameLower)}
                         >
-                          {proposal.votes.includes(voteName.trim().toLowerCase()) ? "Hai gia votato" : "Vota"}
+                          {proposal.votes.includes(voteNameLower) ? "Hai gia votato" : "Vota"}
                         </button>
                       </div>
                     ))
                 ) : (
-                  <p className="muted">Nessuna proposta ancora.</p>
+                  !publicLoading && !publicError ? <p className="muted">Nessuna proposta ancora.</p> : null
                 )}
               </div>
             </article>
