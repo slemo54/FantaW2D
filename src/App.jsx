@@ -1,12 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { createInitialState, deriveState, formatCurrency } from "./seed";
 
 const STORAGE_KEY = "fantaw2d-react-state-v1";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase =
-  SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let supabaseClient = null;
+let supabaseInitTried = false;
+
+const getSupabaseClient = async () => {
+  if (supabaseInitTried) {
+    return supabaseClient;
+  }
+  supabaseInitTried = true;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return null;
+  }
+
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return supabaseClient;
+  } catch (error) {
+    console.error("Supabase init error", error);
+    return null;
+  }
+};
 
 const emptyUserForm = {
   displayName: "",
@@ -72,9 +91,25 @@ function App() {
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
+  const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
+  const isAdmin = currentUser?.role === "admin";
+  const selectedRuleUser =
+    state.users.find((user) => user.id === Number(adminRuleUserId)) ??
+    state.users.find((user) => user.role !== "admin") ??
+    state.users[0];
+
+  const activeView = !currentUser
+    ? state.currentView === "public"
+      ? "public"
+      : "login"
+    : !isAdmin && state.currentView === "admin"
+      ? "dashboard"
+      : state.currentView;
+
   const voteNameLower = useMemo(() => voteName.trim().toLowerCase(), [voteName]);
 
   const loadPublicProposals = async () => {
+    const supabase = await getSupabaseClient();
     if (!supabase) {
       setPublicProposals(state.proposals);
       return;
@@ -130,21 +165,6 @@ function App() {
       loadPublicProposals();
     }
   }, [activeView]);
-
-  const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
-  const isAdmin = currentUser?.role === "admin";
-  const selectedRuleUser =
-    state.users.find((user) => user.id === Number(adminRuleUserId)) ??
-    state.users.find((user) => user.role !== "admin") ??
-    state.users[0];
-
-  const activeView = !currentUser
-    ? state.currentView === "public"
-      ? "public"
-      : "login"
-    : !isAdmin && state.currentView === "admin"
-      ? "dashboard"
-      : state.currentView;
 
   const updateState = (updater, message) => {
     setState((current) => deriveState(typeof updater === "function" ? updater(current) : updater));
@@ -270,27 +290,29 @@ function App() {
       setProposalForm(emptyProposalForm);
     };
 
-    if (!supabase) {
-      submitLocalProposal();
-      return;
-    }
-
-    (async () => {
-      const { error } = await supabase.from("proposals").insert({
-        proposer_name: proposerName,
-        target_name: targetName,
-        description,
-      });
-
-      if (error) {
-        setNotice("Errore nel salvataggio della proposta.");
+    getSupabaseClient().then((supabase) => {
+      if (!supabase) {
+        submitLocalProposal();
         return;
       }
 
-      setProposalForm(emptyProposalForm);
-      setNotice("Proposta inserita. Ora si puo votare.");
-      loadPublicProposals();
-    })();
+      (async () => {
+        const { error } = await supabase.from("proposals").insert({
+          proposer_name: proposerName,
+          target_name: targetName,
+          description,
+        });
+
+        if (error) {
+          setNotice("Errore nel salvataggio della proposta.");
+          return;
+        }
+
+        setProposalForm(emptyProposalForm);
+        setNotice("Proposta inserita. Ora si puo votare.");
+        loadPublicProposals();
+      })();
+    });
   };
 
   const voteProposal = (proposalId) => {
@@ -319,30 +341,32 @@ function App() {
       }), "Voto registrato.");
     };
 
-    if (!supabase) {
-      voteLocalProposal();
-      return;
-    }
-
-    (async () => {
-      const { error } = await supabase.from("proposal_votes").insert({
-        proposal_id: proposalId,
-        voter_name: voteName.trim(),
-        voter_name_lower: voteNameLower,
-      });
-
-      if (error) {
-        if (error.code === "23505") {
-          setNotice("Hai gia votato questa proposta.");
-          return;
-        }
-        setNotice("Errore nel voto.");
+    getSupabaseClient().then((supabase) => {
+      if (!supabase) {
+        voteLocalProposal();
         return;
       }
 
-      setNotice("Voto registrato.");
-      loadPublicProposals();
-    })();
+      (async () => {
+        const { error } = await supabase.from("proposal_votes").insert({
+          proposal_id: proposalId,
+          voter_name: voteName.trim(),
+          voter_name_lower: voteNameLower,
+        });
+
+        if (error) {
+          if (error.code === "23505") {
+            setNotice("Hai gia votato questa proposta.");
+            return;
+          }
+          setNotice("Errore nel voto.");
+          return;
+        }
+
+        setNotice("Voto registrato.");
+        loadPublicProposals();
+      })();
+    });
   };
 
   const startEditUser = (user) => {
