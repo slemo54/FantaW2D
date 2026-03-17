@@ -382,6 +382,18 @@ th {
   align-items: center;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
 .vote-count {
   background: rgba(243, 156, 18, 0.12);
   color: #8a5a00;

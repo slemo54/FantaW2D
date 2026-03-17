@@ -33,6 +33,7 @@ const emptyUserForm = {
   password: "",
   email: "",
   role: "user",
+  isHidden: false,
 };
 
 const emptyTransactionForm = {
@@ -78,6 +79,7 @@ function App() {
   const [publicProposals, setPublicProposals] = useState([]);
   const [publicLoading, setPublicLoading] = useState(false);
   const [publicError, setPublicError] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -94,6 +96,8 @@ function App() {
 
   const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
   const isAdmin = currentUser?.role === "admin";
+  const visibleUsers = state.users.filter((user) => !user.isHidden);
+  const selectableUsers = isAdmin ? state.users : visibleUsers.filter((user) => user.role !== "admin");
   const selectedRuleUser =
     state.users.find((user) => user.id === Number(adminRuleUserId)) ??
     state.users.find((user) => user.role !== "admin") ??
@@ -109,6 +113,54 @@ function App() {
 
   const voterDisplayName = currentUser?.displayName?.trim() || voteName.trim();
   const voteNameLower = useMemo(() => voterDisplayName.toLowerCase(), [voterDisplayName]);
+
+  const loadUsersFromSupabase = async () => {
+    const supabase = await getSupabaseClient();
+    if (!supabase) {
+      return;
+    }
+
+    setUsersLoading(true);
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, username, display_name, password_text, email, role, is_hidden")
+      .order("id", { ascending: true });
+
+    if (error) {
+      setNotice(`Errore Supabase (utenti): ${error.message}`);
+      setUsersLoading(false);
+      return;
+    }
+
+    setState((current) => {
+      const localRulesByName = new Map(
+        current.users.map((user) => [user.displayName, user.malusRules]),
+      );
+      const mergedUsers = (data || []).map((user) => ({
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        password: user.password_text || "user123",
+        email: user.email || "",
+        role: user.role,
+        isHidden: Boolean(user.is_hidden),
+        balance: 0,
+        malusRules: localRulesByName.get(user.display_name) || [],
+      }));
+      const nextId =
+        mergedUsers.length > 0 ? Math.max(...mergedUsers.map((user) => user.id)) + 1 : 1;
+      return deriveState({
+        ...current,
+        users: mergedUsers,
+        nextIds: {
+          ...current.nextIds,
+          user: nextId,
+        },
+      });
+    });
+
+    setUsersLoading(false);
+  };
 
   const loadPublicProposals = async () => {
     const supabase = await getSupabaseClient();
@@ -176,6 +228,10 @@ function App() {
     }
   }, [activeView]);
 
+  useEffect(() => {
+    loadUsersFromSupabase();
+  }, []);
+
   const updateState = (updater, message) => {
     setState((current) => deriveState(typeof updater === "function" ? updater(current) : updater));
     if (message) {
@@ -185,11 +241,12 @@ function App() {
 
   const login = (event) => {
     event.preventDefault();
-    const user = state.users.find(
-      (candidate) =>
-        candidate.username.toLowerCase() === loginForm.username.trim().toLowerCase() &&
-        candidate.password === loginForm.password,
-    );
+    const loginValue = loginForm.username.trim().toLowerCase();
+    const user = state.users.find((candidate) => {
+      const usernameMatch = candidate.username.toLowerCase() === loginValue;
+      const displayMatch = candidate.displayName.toLowerCase() === loginValue;
+      return (usernameMatch || displayMatch) && candidate.password === loginForm.password;
+    });
 
     if (!user) {
       setLoginError("Credenziali non valide.");
@@ -398,62 +455,120 @@ function App() {
       password: user.password,
       email: user.email || "",
       role: user.role,
+      isHidden: user.isHidden || false,
     });
   };
 
   const submitUser = (event) => {
     event.preventDefault();
 
-    updateState((current) => {
-      const normalizedUsername = userForm.username.trim().toLowerCase();
-      const duplicated = current.users.find(
-        (user) => user.username === normalizedUsername && user.id !== editingUserId,
-      );
+    const normalizedUsername = userForm.username.trim().toLowerCase();
+    const nextPayload = {
+      id: editingUserId,
+      displayName: userForm.displayName.trim(),
+      username: normalizedUsername,
+      password: userForm.password,
+      email: userForm.email.trim(),
+      role: userForm.role,
+      isHidden: userForm.isHidden,
+    };
 
-      if (duplicated) {
-        setNotice("Username gia presente.");
-        return current;
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        (async () => {
+          if (editingUserId) {
+            const { error } = await supabase
+              .from("users")
+              .update({
+                username: nextPayload.username,
+                display_name: nextPayload.displayName,
+                password_text: nextPayload.password,
+                email: nextPayload.email || null,
+                role: nextPayload.role,
+                is_hidden: nextPayload.isHidden,
+              })
+              .eq("id", editingUserId);
+
+            if (error) {
+              setNotice(`Errore Supabase (utente): ${error.message}`);
+              return;
+            }
+
+            setNotice("Utente aggiornato.");
+            loadUsersFromSupabase();
+          } else {
+            const { error } = await supabase.from("users").insert({
+              username: nextPayload.username,
+              display_name: nextPayload.displayName,
+              password_text: nextPayload.password,
+              email: nextPayload.email || null,
+              role: nextPayload.role,
+              is_hidden: nextPayload.isHidden,
+            });
+
+            if (error) {
+              setNotice(`Errore Supabase (utente): ${error.message}`);
+              return;
+            }
+
+            setNotice("Utente creato.");
+            loadUsersFromSupabase();
+          }
+        })();
+      } else {
+        updateState((current) => {
+          const duplicated = current.users.find(
+            (user) => user.username === normalizedUsername && user.id !== editingUserId,
+          );
+
+          if (duplicated) {
+            setNotice("Username gia presente.");
+            return current;
+          }
+
+          if (editingUserId) {
+            return {
+              ...current,
+              users: current.users.map((user) =>
+                user.id === editingUserId
+                  ? {
+                      ...user,
+                      displayName: nextPayload.displayName,
+                      username: nextPayload.username,
+                      password: nextPayload.password,
+                      email: nextPayload.email,
+                      role: nextPayload.role,
+                      isHidden: nextPayload.isHidden,
+                    }
+                  : user,
+              ),
+            };
+          }
+
+          return {
+            ...current,
+            users: [
+              ...current.users,
+              {
+                id: current.nextIds.user,
+                displayName: nextPayload.displayName,
+                username: nextPayload.username,
+                password: nextPayload.password,
+                email: nextPayload.email,
+                role: nextPayload.role,
+                isHidden: nextPayload.isHidden,
+                balance: 0,
+                malusRules: [],
+              },
+            ],
+            nextIds: {
+              ...current.nextIds,
+              user: current.nextIds.user + 1,
+            },
+          };
+        }, editingUserId ? "Utente aggiornato." : "Utente creato.");
       }
-
-      if (editingUserId) {
-        return {
-          ...current,
-          users: current.users.map((user) =>
-            user.id === editingUserId
-              ? {
-                  ...user,
-                  displayName: userForm.displayName.trim(),
-                  username: normalizedUsername,
-                  password: userForm.password,
-                  email: userForm.email.trim(),
-                  role: userForm.role,
-                }
-              : user,
-          ),
-        };
-      }
-
-      return {
-        ...current,
-        users: [
-          ...current.users,
-          {
-            id: current.nextIds.user,
-            displayName: userForm.displayName.trim(),
-            username: normalizedUsername,
-            password: userForm.password,
-            email: userForm.email.trim(),
-            role: userForm.role,
-            balance: 0,
-            malusRules: [],
-          },
-        ],
-        nextIds: {
-          ...current.nextIds,
-          user: current.nextIds.user + 1,
-        },
-      };
-    }, editingUserId ? "Utente aggiornato." : "Utente creato.");
+    });
 
     setEditingUserId(null);
     setUserForm(emptyUserForm);
@@ -465,13 +580,27 @@ function App() {
       return;
     }
 
-    updateState((current) => ({
-      ...current,
-      users: current.users.filter((user) => user.id !== userId),
-      transactions: current.transactions.filter(
-        (transaction) => transaction.userId !== userId && transaction.createdBy !== userId,
-      ),
-    }), "Utente eliminato.");
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        (async () => {
+          const { error } = await supabase.from("users").delete().eq("id", userId);
+          if (error) {
+            setNotice(`Errore Supabase (utente): ${error.message}`);
+            return;
+          }
+          setNotice("Utente eliminato.");
+          loadUsersFromSupabase();
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          users: current.users.filter((user) => user.id !== userId),
+          transactions: current.transactions.filter(
+            (transaction) => transaction.userId !== userId && transaction.createdBy !== userId,
+          ),
+        }), "Utente eliminato.");
+      }
+    });
   };
 
   const submitMalusType = (event) => {
@@ -600,6 +729,7 @@ function App() {
       userId: String(transaction.userId),
       malusTypeId: transaction.malusTypeId,
       description: transaction.description,
+      ruleId: "",
     });
   };
 
@@ -901,7 +1031,7 @@ function App() {
                     required
                   >
                     <option value="">Seleziona</option>
-                    {state.users.map((user) => (
+                    {selectableUsers.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.displayName}
                       </option>
@@ -992,7 +1122,7 @@ function App() {
             <h2>Classifica</h2>
             <p className="muted">Utenti con saldo peggiore in cima.</p>
             <div className="leaderboard-list">
-              {[...state.users]
+              {[...visibleUsers]
                 .sort((a, b) => a.balance - b.balance)
                 .map((user, index) => (
                   <div className={`leaderboard-row ${user.id === currentUser.id ? "current-user" : ""}`} key={user.id}>
@@ -1184,6 +1314,7 @@ function App() {
                 <h2>Utenti</h2>
                 <span className="muted">L'admin gestisce correzioni e controlli manuali.</span>
               </div>
+              {usersLoading ? <p className="muted">Sincronizzazione utenti...</p> : null}
               <form className="stack" onSubmit={submitUser}>
                 <label>
                   Nome visualizzato
@@ -1232,6 +1363,16 @@ function App() {
                     <option value="admin">Admin</option>
                   </select>
                 </label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={userForm.isHidden}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, isHidden: event.target.checked }))
+                    }
+                  />
+                  Nascondi da classifica e gioco
+                </label>
                 <div className="actions-row">
                   <button className="btn btn-primary" type="submit">
                     {editingUserId ? "Salva utente" : "Aggiungi utente"}
@@ -1257,6 +1398,7 @@ function App() {
                       <strong>{user.displayName}</strong>
                       <p className="muted">
                         {user.username} · {user.role} · {formatCurrency(user.balance)}
+                        {user.isHidden ? " · nascosto" : ""}
                       </p>
                     </div>
                     <div className="actions-row">
