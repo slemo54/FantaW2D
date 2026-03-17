@@ -1,13 +1,17 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap");
+
 :root {
-  --primary-color: #3498db;
-  --secondary-color: #e74c3c;
-  --accent-color: #f39c12;
-  --text-color: #333;
-  --light-bg: #f5f9fa;
-  --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-  --danger-color: #e74c3c;
-  --success-color: #2ecc71;
-  --border-color: rgba(0, 0, 0, 0.08);
+  --primary-color: #7b61ff;
+  --secondary-color: #1f9fff;
+  --accent-color: #ff8a00;
+  --text-color: #1f2a44;
+  --light-bg: #f4f6ff;
+  --card-shadow: 0 18px 40px rgba(31, 42, 68, 0.12);
+  --danger-color: #ff4d6d;
+  --success-color: #3ad29f;
+  --border-color: rgba(31, 42, 68, 0.08);
+  --glass: rgba(255, 255, 255, 0.72);
+  --radius-xl: 26px;
 }
 
 * {
@@ -16,10 +20,12 @@
 
 body {
   margin: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Nunito", "Segoe UI", system-ui, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(52, 152, 219, 0.16), transparent 35%),
-    linear-gradient(180deg, #f8fbfd 0%, var(--light-bg) 100%);
+    radial-gradient(circle at 20% 10%, rgba(123, 97, 255, 0.28), transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(31, 159, 255, 0.2), transparent 45%),
+    radial-gradient(circle at 50% 90%, rgba(255, 138, 0, 0.2), transparent 50%),
+    linear-gradient(180deg, #fbfcff 0%, var(--light-bg) 100%);
   color: var(--text-color);
 }
 
@@ -47,19 +53,22 @@ button {
 .app-header,
 .login-card,
 .card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+  background: var(--glass);
+  border-radius: var(--radius-xl);
   box-shadow: var(--card-shadow);
-  border-top: 4px solid var(--primary-color);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  animation: floatIn 0.5s ease both;
 }
 
 .app-header {
-  padding: 24px;
+  padding: 24px 28px;
   margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
   gap: 20px;
   align-items: center;
+  background: linear-gradient(120deg, rgba(123, 97, 255, 0.18), rgba(31, 159, 255, 0.12));
 }
 
 .app-header h1,
@@ -72,10 +81,10 @@ button {
 .eyebrow {
   margin: 0 0 8px;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  font-size: 0.74rem;
   color: var(--accent-color);
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .user-strip {
@@ -92,22 +101,24 @@ button {
 }
 
 .nav-tabs button {
-  background: white;
+  background: rgba(255, 255, 255, 0.85);
   color: var(--text-color);
-  padding: 12px 18px;
+  padding: 12px 20px;
   border-radius: 999px;
   cursor: pointer;
-  font-weight: 600;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+  font-weight: 800;
+  box-shadow: 0 6px 14px rgba(31, 42, 68, 0.12);
+  border: 1px solid rgba(123, 97, 255, 0.15);
 }
 
 .nav-tabs button.active {
-  background: var(--primary-color);
+  background: linear-gradient(120deg, var(--primary-color), #9b87ff);
   color: white;
+  box-shadow: 0 10px 18px rgba(123, 97, 255, 0.35);
 }
 
 .card {
-  padding: 24px;
+  padding: 24px 26px;
 }
 
 .grid.two-cols,
@@ -134,7 +145,7 @@ button {
 
 .amount {
   font-size: 2.8rem;
-  font-weight: 800;
+  font-weight: 900;
   margin: 16px 0;
   color: var(--primary-color);
 }
@@ -147,17 +158,17 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 18px;
-  border-radius: 10px;
-  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 18px rgba(31, 42, 68, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 16px 28px rgba(31, 42, 68, 0.22);
 }
 
 .btn:disabled {
@@ -168,22 +179,22 @@ button {
 }
 
 .btn-primary {
-  background: var(--primary-color);
+  background: linear-gradient(120deg, var(--primary-color), #9b87ff);
   color: white;
 }
 
 .btn-secondary {
-  background: var(--secondary-color);
+  background: linear-gradient(120deg, var(--secondary-color), #6bc1ff);
   color: white;
 }
 
 .btn-accent {
-  background: var(--accent-color);
-  color: white;
+  background: linear-gradient(120deg, var(--accent-color), #ffc04d);
+  color: #1f2a44;
 }
 
 .btn-danger {
-  background: #1f2937;
+  background: linear-gradient(120deg, #1f2a44, #38496b);
   color: white;
 }
 
@@ -209,9 +220,10 @@ select,
 textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: white;
+  border: 1px solid rgba(123, 97, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 textarea {
@@ -252,10 +264,11 @@ textarea {
 .rule-card,
 .credential-box,
 .proposal-card {
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 14px 16px;
-  background: #fff;
+  border: 1px solid rgba(123, 97, 255, 0.12);
+  border-radius: 20px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 16px rgba(31, 42, 68, 0.08);
 }
 
 .transaction-item.cancelled,
@@ -271,13 +284,13 @@ tr.cancelled {
 }
 
 .rank {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(52, 152, 219, 0.12);
-  font-weight: 800;
+  background: linear-gradient(140deg, rgba(123, 97, 255, 0.25), rgba(31, 159, 255, 0.2));
+  font-weight: 900;
   color: var(--primary-color);
 }
 
@@ -290,22 +303,22 @@ tr.cancelled {
 }
 
 .balance-pill {
-  background: rgba(52, 152, 219, 0.12);
+  background: rgba(123, 97, 255, 0.14);
   color: var(--primary-color);
 }
 
 .balance-pill.negative {
-  background: rgba(231, 76, 60, 0.1);
+  background: rgba(255, 77, 109, 0.12);
   color: var(--danger-color);
 }
 
 .badge-available {
-  background: rgba(46, 204, 113, 0.12);
-  color: #17854b;
+  background: rgba(58, 210, 159, 0.16);
+  color: #148865;
 }
 
 .current-user {
-  border: 2px solid rgba(52, 152, 219, 0.24);
+  border: 2px solid rgba(123, 97, 255, 0.35);
 }
 
 .notification {
@@ -321,7 +334,7 @@ tr.cancelled {
 }
 
 .notification.success {
-  background: linear-gradient(90deg, var(--success-color), #34d399);
+  background: linear-gradient(90deg, var(--success-color), #6ee7c5);
 }
 
 .table-wrap {
@@ -343,7 +356,7 @@ td {
 
 th {
   color: white;
-  background: var(--primary-color);
+  background: linear-gradient(120deg, var(--primary-color), #9b87ff);
 }
 
 .login-shell {
@@ -353,7 +366,7 @@ th {
 
 .login-card {
   width: min(100%, 520px);
-  padding: 32px;
+  padding: 36px;
 }
 
 .login-card .btn {
@@ -363,13 +376,13 @@ th {
 .app-footer {
   margin: 28px 0 10px;
   text-align: center;
-  font-weight: 700;
-  color: #5d6b7a;
+  font-weight: 800;
+  color: #5a647d;
 }
 
 .credential-box {
   margin-top: 18px;
-  background: rgba(52, 152, 219, 0.05);
+  background: rgba(123, 97, 255, 0.08);
 }
 
 .error-text {
@@ -444,5 +457,16 @@ th {
 
   .transaction-meta {
     align-items: flex-start;
+  }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
