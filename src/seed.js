@@ -89,6 +89,7 @@ export const createInitialState = () => {
     password,
     email,
     balance: 0,
+    isHidden: false,
     malusRules: (ruleSeeds[displayName] || []).map(([malusTypeId, description]) => ({
       id: nextRuleId++,
       malusTypeId,

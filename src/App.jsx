@@ -80,6 +80,7 @@ function App() {
   const [publicLoading, setPublicLoading] = useState(false);
   const [publicError, setPublicError] = useState("");
   const [usersLoading, setUsersLoading] = useState(false);
+  const [adminUserFilter, setAdminUserFilter] = useState("active");
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -96,8 +97,9 @@ function App() {
 
   const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
   const isAdmin = currentUser?.role === "admin";
-  const visibleUsers = state.users.filter((user) => !user.isHidden);
-  const selectableUsers = isAdmin ? state.users : visibleUsers.filter((user) => user.role !== "admin");
+  const visibleUsers = state.users.filter((user) => !user.isHidden && user.role !== "admin");
+  const assignableUsers = state.users.filter((user) => user.role !== "admin" && !user.isHidden);
+  const selectableUsers = isAdmin ? assignableUsers : assignableUsers;
   const selectedRuleUser =
     state.users.find((user) => user.id === Number(adminRuleUserId)) ??
     state.users.find((user) => user.role !== "admin") ??
@@ -133,9 +135,6 @@ function App() {
     }
 
     setState((current) => {
-      const localRulesByName = new Map(
-        current.users.map((user) => [user.displayName, user.malusRules]),
-      );
       const mergedUsers = (data || []).map((user) => ({
         id: user.id,
         username: user.username,
@@ -145,7 +144,7 @@ function App() {
         role: user.role,
         isHidden: Boolean(user.is_hidden),
         balance: 0,
-        malusRules: localRulesByName.get(user.display_name) || [],
+        malusRules: [],
       }));
       const nextId =
         mergedUsers.length > 0 ? Math.max(...mergedUsers.map((user) => user.id)) + 1 : 1;
@@ -160,6 +159,130 @@ function App() {
     });
 
     setUsersLoading(false);
+  };
+
+  const loadMalusTypesFromSupabase = async () => {
+    const supabase = await getSupabaseClient();
+    if (!supabase) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("malus_types")
+      .select("id, code, name, amount, is_active")
+      .order("id", { ascending: true });
+
+    if (error) {
+      setNotice(`Errore Supabase (malus): ${error.message}`);
+      return;
+    }
+
+    const normalized = (data || []).map((row) => ({
+      id: row.code,
+      name: row.name,
+      amount: Number(row.amount),
+      dbId: row.id,
+      isActive: row.is_active,
+    }));
+
+    setState((current) =>
+      deriveState({
+        ...current,
+        malusTypes: normalized.filter((item) => item.isActive),
+      }),
+    );
+  };
+
+  const loadRulesFromSupabase = async () => {
+    const supabase = await getSupabaseClient();
+    if (!supabase) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("user_malus_rules")
+      .select("id, user_id, malus_type_id, description");
+
+    if (error) {
+      setNotice(`Errore Supabase (regole): ${error.message}`);
+      return;
+    }
+
+    setState((current) => {
+      const malusTypeByDbId = new Map(
+        current.malusTypes.map((item) => [item.dbId, item.id]),
+      );
+      const rulesByUser = new Map();
+
+      (data || []).forEach((rule) => {
+        const malusCode = malusTypeByDbId.get(rule.malus_type_id);
+        if (!malusCode) {
+          return;
+        }
+        if (!rulesByUser.has(rule.user_id)) {
+          rulesByUser.set(rule.user_id, []);
+        }
+        rulesByUser.get(rule.user_id).push({
+          id: rule.id,
+          dbId: rule.id,
+          malusTypeId: malusCode,
+          description: rule.description,
+        });
+      });
+
+      const users = current.users.map((user) => ({
+        ...user,
+        malusRules: rulesByUser.get(user.id) || [],
+      }));
+
+      return deriveState({
+        ...current,
+        users,
+      });
+    });
+  };
+
+  const loadTransactionsFromSupabase = async () => {
+    const supabase = await getSupabaseClient();
+    if (!supabase) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, user_id, created_by, malus_type_id, amount, description, cancelled, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setNotice(`Errore Supabase (transazioni): ${error.message}`);
+      return;
+    }
+
+    setState((current) => {
+      const malusTypeByDbId = new Map(
+        current.malusTypes.map((item) => [item.dbId, item.id]),
+      );
+      const transactions = (data || []).map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        createdBy: row.created_by,
+        type: "malus",
+        malusTypeId: malusTypeByDbId.get(row.malus_type_id) || current.malusTypes[0]?.id,
+        amount: Number(row.amount),
+        description: row.description,
+        cancelled: row.cancelled,
+        timestamp: row.created_at,
+      }));
+
+      return deriveState({
+        ...current,
+        transactions,
+        nextIds: {
+          ...current.nextIds,
+          transaction: transactions.length > 0 ? Math.max(...transactions.map((t) => t.id)) + 1 : 1,
+        },
+      });
+    });
   };
 
   const loadPublicProposals = async () => {
@@ -229,7 +352,12 @@ function App() {
   }, [activeView]);
 
   useEffect(() => {
-    loadUsersFromSupabase();
+    (async () => {
+      await loadMalusTypesFromSupabase();
+      await loadUsersFromSupabase();
+      await loadRulesFromSupabase();
+      await loadTransactionsFromSupabase();
+    })();
   }, []);
 
   const updateState = (updater, message) => {
@@ -310,27 +438,50 @@ function App() {
       return;
     }
 
-    updateState((current) => ({
-      ...current,
-      transactions: [
-        {
-          id: current.nextIds.transaction,
-          userId: Number(transactionForm.userId),
-          createdBy: currentUser.id,
-          type: "malus",
-          malusTypeId: malusType.id,
-          amount: Number(malusType.amount),
-          description,
-          cancelled: false,
-          timestamp: new Date().toISOString(),
-        },
-        ...current.transactions,
-      ],
-      nextIds: {
-        ...current.nextIds,
-        transaction: current.nextIds.transaction + 1,
-      },
-    }), "Malus registrato.");
+    getSupabaseClient().then((supabase) => {
+      if (supabase && malusType.dbId) {
+        (async () => {
+          const { error } = await supabase.from("transactions").insert({
+            user_id: Number(transactionForm.userId),
+            created_by: currentUser.id,
+            malus_type_id: malusType.dbId,
+            amount: Number(malusType.amount),
+            description,
+            cancelled: false,
+          });
+
+          if (error) {
+            setNotice(`Errore Supabase (transazioni): ${error.message}`);
+            return;
+          }
+
+          setNotice("Malus registrato.");
+          loadTransactionsFromSupabase();
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          transactions: [
+            {
+              id: current.nextIds.transaction,
+              userId: Number(transactionForm.userId),
+              createdBy: currentUser.id,
+              type: "malus",
+              malusTypeId: malusType.id,
+              amount: Number(malusType.amount),
+              description,
+              cancelled: false,
+              timestamp: new Date().toISOString(),
+            },
+            ...current.transactions,
+          ],
+          nextIds: {
+            ...current.nextIds,
+            transaction: current.nextIds.transaction + 1,
+          },
+        }), "Malus registrato.");
+      }
+    });
 
     setTransactionForm(emptyTransactionForm);
   };
@@ -606,49 +757,114 @@ function App() {
   const submitMalusType = (event) => {
     event.preventDefault();
 
-    updateState((current) => {
-      if (editingMalusId) {
-        return {
-          ...current,
-          malusTypes: current.malusTypes.map((item) =>
-            item.id === editingMalusId
-              ? { ...item, name: malusForm.name.trim(), amount: Number(malusForm.amount) }
-              : item,
-          ),
-        };
-      }
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        (async () => {
+          if (editingMalusId) {
+            const malusItem = state.malusTypes.find((item) => item.id === editingMalusId);
+            if (!malusItem?.dbId) {
+              return;
+            }
+            const { error } = await supabase
+              .from("malus_types")
+              .update({
+                name: malusForm.name.trim(),
+                amount: Number(malusForm.amount),
+              })
+              .eq("id", malusItem.dbId);
 
-      return {
-        ...current,
-        malusTypes: [
-          ...current.malusTypes,
-          {
-            id: `malus-${current.nextIds.malusType}`,
-            name: malusForm.name.trim(),
-            amount: Number(malusForm.amount),
-          },
-        ],
-        nextIds: {
-          ...current.nextIds,
-          malusType: current.nextIds.malusType + 1,
-        },
-      };
-    }, editingMalusId ? "Malus aggiornato." : "Nuovo malus aggiunto.");
+            if (error) {
+              setNotice(`Errore Supabase (malus): ${error.message}`);
+              return;
+            }
+            setNotice("Malus aggiornato.");
+            loadMalusTypesFromSupabase();
+          } else {
+            const code = `malus-${state.nextIds.malusType}`;
+            const { error } = await supabase.from("malus_types").insert({
+              code,
+              name: malusForm.name.trim(),
+              amount: Number(malusForm.amount),
+              is_active: true,
+            });
+            if (error) {
+              setNotice(`Errore Supabase (malus): ${error.message}`);
+              return;
+            }
+            setNotice("Nuovo malus aggiunto.");
+            loadMalusTypesFromSupabase();
+          }
+        })();
+      } else {
+        updateState((current) => {
+          if (editingMalusId) {
+            return {
+              ...current,
+              malusTypes: current.malusTypes.map((item) =>
+                item.id === editingMalusId
+                  ? { ...item, name: malusForm.name.trim(), amount: Number(malusForm.amount) }
+                  : item,
+              ),
+            };
+          }
+
+          return {
+            ...current,
+            malusTypes: [
+              ...current.malusTypes,
+              {
+                id: `malus-${current.nextIds.malusType}`,
+                name: malusForm.name.trim(),
+                amount: Number(malusForm.amount),
+              },
+            ],
+            nextIds: {
+              ...current.nextIds,
+              malusType: current.nextIds.malusType + 1,
+            },
+          };
+        }, editingMalusId ? "Malus aggiornato." : "Nuovo malus aggiunto.");
+      }
+    });
 
     setEditingMalusId(null);
     setMalusForm({ name: "", amount: "0.50" });
   };
 
   const deleteMalusType = (malusTypeId) => {
-    updateState((current) => ({
-      ...current,
-      malusTypes: current.malusTypes.filter((item) => item.id !== malusTypeId),
-      users: current.users.map((user) => ({
-        ...user,
-        malusRules: user.malusRules.filter((rule) => rule.malusTypeId !== malusTypeId),
-      })),
-      transactions: current.transactions.filter((transaction) => transaction.malusTypeId !== malusTypeId),
-    }), "Malus eliminato.");
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        (async () => {
+          const malusItem = state.malusTypes.find((item) => item.id === malusTypeId);
+          if (!malusItem?.dbId) {
+            return;
+          }
+          const { error } = await supabase
+            .from("malus_types")
+            .update({ is_active: false })
+            .eq("id", malusItem.dbId);
+
+          if (error) {
+            setNotice(`Errore Supabase (malus): ${error.message}`);
+            return;
+          }
+          setNotice("Malus eliminato.");
+          loadMalusTypesFromSupabase();
+          loadRulesFromSupabase();
+          loadTransactionsFromSupabase();
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          malusTypes: current.malusTypes.filter((item) => item.id !== malusTypeId),
+          users: current.users.map((user) => ({
+            ...user,
+            malusRules: user.malusRules.filter((rule) => rule.malusTypeId !== malusTypeId),
+          })),
+          transactions: current.transactions.filter((transaction) => transaction.malusTypeId !== malusTypeId),
+        }), "Malus eliminato.");
+      }
+    });
   };
 
   const startEditRule = (rule) => {
@@ -665,41 +881,78 @@ function App() {
       return;
     }
 
-    updateState((current) => ({
-      ...current,
-      users: current.users.map((user) => {
-        if (user.id !== selectedRuleUser.id) {
-          return user;
-        }
+    const malusItem = state.malusTypes.find((item) => item.id === ruleForm.malusTypeId);
+    getSupabaseClient().then((supabase) => {
+      if (supabase && malusItem?.dbId) {
+        (async () => {
+          if (editingRuleId) {
+            const { error } = await supabase
+              .from("user_malus_rules")
+              .update({
+                malus_type_id: malusItem.dbId,
+                description: ruleForm.description.trim(),
+              })
+              .eq("id", editingRuleId);
 
-        if (editingRuleId) {
-          return {
-            ...user,
-            malusRules: user.malusRules.map((rule) =>
-              rule.id === editingRuleId ? { ...rule, ...ruleForm } : rule,
-            ),
-          };
-        }
-
-        return {
-          ...user,
-          malusRules: [
-            ...user.malusRules,
-            {
-              id: current.nextIds.rule,
-              malusTypeId: ruleForm.malusTypeId,
+            if (error) {
+              setNotice(`Errore Supabase (regole): ${error.message}`);
+              return;
+            }
+            setNotice("Regola malus aggiornata.");
+            loadRulesFromSupabase();
+          } else {
+            const { error } = await supabase.from("user_malus_rules").insert({
+              user_id: selectedRuleUser.id,
+              malus_type_id: malusItem.dbId,
               description: ruleForm.description.trim(),
-            },
-          ],
-        };
-      }),
-      nextIds: editingRuleId
-        ? current.nextIds
-        : {
-            ...current.nextIds,
-            rule: current.nextIds.rule + 1,
-          },
-    }), editingRuleId ? "Regola malus aggiornata." : "Regola malus aggiunta.");
+            });
+
+            if (error) {
+              setNotice(`Errore Supabase (regole): ${error.message}`);
+              return;
+            }
+            setNotice("Regola malus aggiunta.");
+            loadRulesFromSupabase();
+          }
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          users: current.users.map((user) => {
+            if (user.id !== selectedRuleUser.id) {
+              return user;
+            }
+
+            if (editingRuleId) {
+              return {
+                ...user,
+                malusRules: user.malusRules.map((rule) =>
+                  rule.id === editingRuleId ? { ...rule, ...ruleForm } : rule,
+                ),
+              };
+            }
+
+            return {
+              ...user,
+              malusRules: [
+                ...user.malusRules,
+                {
+                  id: current.nextIds.rule,
+                  malusTypeId: ruleForm.malusTypeId,
+                  description: ruleForm.description.trim(),
+                },
+              ],
+            };
+          }),
+          nextIds: editingRuleId
+            ? current.nextIds
+            : {
+                ...current.nextIds,
+                rule: current.nextIds.rule + 1,
+              },
+        }), editingRuleId ? "Regola malus aggiornata." : "Regola malus aggiunta.");
+      }
+    });
 
     setEditingRuleId(null);
     setRuleForm({ malusTypeId: "", description: "" });
@@ -710,17 +963,31 @@ function App() {
       return;
     }
 
-    updateState((current) => ({
-      ...current,
-      users: current.users.map((user) =>
-        user.id === selectedRuleUser.id
-          ? {
-              ...user,
-              malusRules: user.malusRules.filter((rule) => rule.id !== ruleId),
-            }
-          : user,
-      ),
-    }), "Regola malus eliminata.");
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        (async () => {
+          const { error } = await supabase.from("user_malus_rules").delete().eq("id", ruleId);
+          if (error) {
+            setNotice(`Errore Supabase (regole): ${error.message}`);
+            return;
+          }
+          setNotice("Regola malus eliminata.");
+          loadRulesFromSupabase();
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          users: current.users.map((user) =>
+            user.id === selectedRuleUser.id
+              ? {
+                  ...user,
+                  malusRules: user.malusRules.filter((rule) => rule.id !== ruleId),
+                }
+              : user,
+          ),
+        }), "Regola malus eliminata.");
+      }
+    });
   };
 
   const startEditTransaction = (transaction) => {
@@ -740,67 +1007,145 @@ function App() {
       return;
     }
 
-    updateState((current) => {
-      if (editingTransactionId) {
-        return {
-          ...current,
-          transactions: current.transactions.map((transaction) =>
-            transaction.id === editingTransactionId
-              ? {
-                  ...transaction,
-                  userId: Number(transactionForm.userId),
-                  malusTypeId: malusType.id,
-                  amount: Number(malusType.amount),
-                  description: transactionForm.description.trim(),
-                }
-              : transaction,
-          ),
-        };
-      }
+    getSupabaseClient().then((supabase) => {
+      if (supabase && malusType.dbId) {
+        (async () => {
+          if (editingTransactionId) {
+            const { error } = await supabase
+              .from("transactions")
+              .update({
+                user_id: Number(transactionForm.userId),
+                malus_type_id: malusType.dbId,
+                amount: Number(malusType.amount),
+                description: transactionForm.description.trim(),
+              })
+              .eq("id", editingTransactionId);
 
-      return {
-        ...current,
-        transactions: [
-          {
-            id: current.nextIds.transaction,
-            userId: Number(transactionForm.userId),
-            createdBy: currentUser.id,
-            type: "malus",
-            malusTypeId: malusType.id,
-            amount: Number(malusType.amount),
-            description: transactionForm.description.trim(),
-            cancelled: false,
-            timestamp: new Date().toISOString(),
-          },
-          ...current.transactions,
-        ],
-        nextIds: {
-          ...current.nextIds,
-          transaction: current.nextIds.transaction + 1,
-        },
-      };
-    }, editingTransactionId ? "Transazione aggiornata." : "Transazione aggiunta.");
+            if (error) {
+              setNotice(`Errore Supabase (transazioni): ${error.message}`);
+              return;
+            }
+
+            setNotice("Transazione aggiornata.");
+            loadTransactionsFromSupabase();
+          } else {
+            const { error } = await supabase.from("transactions").insert({
+              user_id: Number(transactionForm.userId),
+              created_by: currentUser.id,
+              malus_type_id: malusType.dbId,
+              amount: Number(malusType.amount),
+              description: transactionForm.description.trim(),
+              cancelled: false,
+            });
+
+            if (error) {
+              setNotice(`Errore Supabase (transazioni): ${error.message}`);
+              return;
+            }
+
+            setNotice("Transazione aggiunta.");
+            loadTransactionsFromSupabase();
+          }
+        })();
+      } else {
+        updateState((current) => {
+          if (editingTransactionId) {
+            return {
+              ...current,
+              transactions: current.transactions.map((transaction) =>
+                transaction.id === editingTransactionId
+                  ? {
+                      ...transaction,
+                      userId: Number(transactionForm.userId),
+                      malusTypeId: malusType.id,
+                      amount: Number(malusType.amount),
+                      description: transactionForm.description.trim(),
+                    }
+                  : transaction,
+              ),
+            };
+          }
+
+          return {
+            ...current,
+            transactions: [
+              {
+                id: current.nextIds.transaction,
+                userId: Number(transactionForm.userId),
+                createdBy: currentUser.id,
+                type: "malus",
+                malusTypeId: malusType.id,
+                amount: Number(malusType.amount),
+                description: transactionForm.description.trim(),
+                cancelled: false,
+                timestamp: new Date().toISOString(),
+              },
+              ...current.transactions,
+            ],
+            nextIds: {
+              ...current.nextIds,
+              transaction: current.nextIds.transaction + 1,
+            },
+          };
+        }, editingTransactionId ? "Transazione aggiornata." : "Transazione aggiunta.");
+      }
+    });
 
     setEditingTransactionId(null);
     setTransactionForm(emptyTransactionForm);
   };
 
   const toggleCancelled = (transactionId) => {
-    updateState((current) => ({
-      ...current,
-      transactions: current.transactions.map((transaction) =>
-        transaction.id === transactionId
-          ? { ...transaction, cancelled: !transaction.cancelled }
-          : transaction,
-      ),
-    }), "Stato transazione aggiornato.");
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        const currentTx = state.transactions.find((transaction) => transaction.id === transactionId);
+        if (!currentTx) {
+          return;
+        }
+        (async () => {
+          const { error } = await supabase
+            .from("transactions")
+            .update({ cancelled: !currentTx.cancelled })
+            .eq("id", transactionId);
+          if (error) {
+            setNotice(`Errore Supabase (transazioni): ${error.message}`);
+            return;
+          }
+          setNotice("Stato transazione aggiornato.");
+          loadTransactionsFromSupabase();
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          transactions: current.transactions.map((transaction) =>
+            transaction.id === transactionId
+              ? { ...transaction, cancelled: !transaction.cancelled }
+              : transaction,
+          ),
+        }), "Stato transazione aggiornato.");
+      }
+    });
   };
 
   const deleteTransaction = (transactionId) => {
-    updateState((current) => ({
-      ...current,
-      transactions: current.transactions.filter((transaction) => transaction.id !== transactionId),
-    }), "Transazione eliminata.");
+    getSupabaseClient().then((supabase) => {
+      if (supabase) {
+        (async () => {
+          const { error } = await supabase.from("transactions").delete().eq("id", transactionId);
+          if (error) {
+            setNotice(`Errore Supabase (transazioni): ${error.message}`);
+            return;
+          }
+          setNotice("Transazione eliminata.");
+          loadTransactionsFromSupabase();
+        })();
+      } else {
+        updateState((current) => ({
+          ...current,
+          transactions: current.transactions.filter((transaction) => transaction.id !== transactionId),
+        }), "Transazione eliminata.");
+      }
+    });
   };
 
   if (activeView === "public" && !currentUser) {
@@ -1031,7 +1376,7 @@ function App() {
                     required
                   >
                     <option value="">Seleziona</option>
-                    {selectableUsers.map((user) => (
+                    {assignableUsers.map((user) => (
                       <option key={user.id} value={user.id}>
                         {user.displayName}
                       </option>
@@ -1314,6 +1659,30 @@ function App() {
                 <h2>Utenti</h2>
                 <span className="muted">L'admin gestisce correzioni e controlli manuali.</span>
               </div>
+              <div className="filter-row">
+                <span className="muted">Mostra:</span>
+                <button
+                  className={`btn btn-secondary ${adminUserFilter === "active" ? "active-filter" : ""}`}
+                  type="button"
+                  onClick={() => setAdminUserFilter("active")}
+                >
+                  Attivi
+                </button>
+                <button
+                  className={`btn btn-secondary ${adminUserFilter === "hidden" ? "active-filter" : ""}`}
+                  type="button"
+                  onClick={() => setAdminUserFilter("hidden")}
+                >
+                  Nascosti
+                </button>
+                <button
+                  className={`btn btn-secondary ${adminUserFilter === "all" ? "active-filter" : ""}`}
+                  type="button"
+                  onClick={() => setAdminUserFilter("all")}
+                >
+                  Tutti
+                </button>
+              </div>
               {usersLoading ? <p className="muted">Sincronizzazione utenti...</p> : null}
               <form className="stack" onSubmit={submitUser}>
                 <label>
@@ -1392,7 +1761,12 @@ function App() {
                 </div>
               </form>
               <div className="stack compact">
-                {state.users.map((user) => (
+                {(adminUserFilter === "all"
+                  ? state.users
+                  : adminUserFilter === "hidden"
+                    ? state.users.filter((user) => user.isHidden)
+                    : state.users.filter((user) => !user.isHidden)
+                ).map((user) => (
                   <div className="admin-item" key={user.id}>
                     <div>
                       <strong>{user.displayName}</strong>
