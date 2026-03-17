@@ -415,6 +415,16 @@ th {
   border: 1px solid rgba(123, 97, 255, 0.25);
 }
 
+.hint-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #3b2f7a;
+}
+
+.hint-list li {
+  margin: 4px 0;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

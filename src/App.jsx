@@ -111,6 +111,18 @@ function App() {
     ).length;
     return count < 1;
   });
+  const usersBelowTarget = activeUsers
+    .map((user) => {
+      const count = state.transactions.filter(
+        (transaction) => transaction.userId === user.id && !transaction.cancelled,
+      ).length;
+      return {
+        ...user,
+        malusCount: count,
+        missing: Math.max(0, 2 - count),
+      };
+    })
+    .filter((user) => user.missing > 0);
 
   const activeView = !currentUser
     ? state.currentView === "public"
@@ -1181,6 +1193,18 @@ function App() {
                 <div className="hint-card">
                   <strong>Da colpire: </strong>
                   {usersWithoutMalus.map((user) => user.displayName).join(", ")}
+                </div>
+              ) : null}
+              {usersBelowTarget.length ? (
+                <div className="hint-card top-gap">
+                  <strong>Obiettivo 2 malus:</strong>
+                  <ul className="hint-list">
+                    {usersBelowTarget.map((user) => (
+                      <li key={user.id}>
+                        {user.displayName} · mancano {user.missing}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
               <form className="stack" onSubmit={submitProposal}>
