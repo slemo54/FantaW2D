@@ -39,6 +39,7 @@ const emptyTransactionForm = {
   userId: "",
   malusTypeId: "",
   description: "",
+  ruleId: "",
 };
 
 const emptyProposalForm = {
@@ -106,7 +107,8 @@ function App() {
       ? "dashboard"
       : state.currentView;
 
-  const voteNameLower = useMemo(() => voteName.trim().toLowerCase(), [voteName]);
+  const voterDisplayName = currentUser?.displayName?.trim() || voteName.trim();
+  const voteNameLower = useMemo(() => voterDisplayName.toLowerCase(), [voterDisplayName]);
 
   const loadPublicProposals = async () => {
     const supabase = await getSupabaseClient();
@@ -240,6 +242,17 @@ function App() {
       return;
     }
 
+    const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
+    const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === transactionForm.ruleId);
+    const description = isAdmin
+      ? transactionForm.description.trim()
+      : selectedRule?.description?.trim() || "";
+
+    if (!description) {
+      setNotice("Seleziona un malus gia impostato.");
+      return;
+    }
+
     updateState((current) => ({
       ...current,
       transactions: [
@@ -250,7 +263,7 @@ function App() {
           type: "malus",
           malusTypeId: malusType.id,
           amount: Number(malusType.amount),
-          description: transactionForm.description.trim(),
+          description,
           cancelled: false,
           timestamp: new Date().toISOString(),
         },
@@ -358,7 +371,7 @@ function App() {
       (async () => {
         const { error } = await supabase.from("proposal_votes").insert({
           proposal_id: proposalId,
-          voter_name: voteName.trim(),
+          voter_name: voterDisplayName,
           voter_name_lower: voteNameLower,
         });
 
@@ -719,10 +732,14 @@ function App() {
 
             <article className="card">
               <h2>Vota le proposte</h2>
-              <label>
-                Il tuo nome (per votare)
-                <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
-              </label>
+              {currentUser ? (
+                <p className="muted">Stai votando come {currentUser.displayName}.</p>
+              ) : (
+                <label>
+                  Il tuo nome (per votare)
+                  <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
+                </label>
+              )}
               <div className="stack top-gap">
                 {publicLoading ? <p className="muted">Caricamento...</p> : null}
                 {publicError ? <p className="error-text">{publicError}</p> : null}
@@ -745,9 +762,9 @@ function App() {
                           className="btn btn-accent"
                           type="button"
                           onClick={() => voteProposal(proposal.id)}
-                          disabled={!voteName.trim() || proposal.votes.includes(voteName.trim().toLowerCase())}
+                          disabled={!voteNameLower || proposal.votes.includes(voteNameLower)}
                         >
-                          {proposal.votes.includes(voteName.trim().toLowerCase()) ? "Hai gia votato" : "Vota"}
+                          {proposal.votes.includes(voteNameLower) ? "Hai gia votato" : "Vota"}
                         </button>
                       </div>
                     ))
@@ -863,13 +880,23 @@ function App() {
 
             <article className="card">
               <h2>Assegna malus</h2>
+              {!isAdmin ? (
+                <p className="muted">
+                  Gli utenti normali possono scegliere solo malus gia impostati. Le nuove regole vengono aggiunte
+                  dall&apos;admin dopo le votazioni.
+                </p>
+              ) : null}
               <form className="stack" onSubmit={submitQuickMalus}>
                 <label>
                   Utente
                   <select
                     value={transactionForm.userId}
                     onChange={(event) =>
-                      setTransactionForm((current) => ({ ...current, userId: event.target.value }))
+                      setTransactionForm((current) => ({
+                        ...current,
+                        userId: event.target.value,
+                        ruleId: "",
+                      }))
                     }
                     required
                   >
@@ -898,18 +925,41 @@ function App() {
                     ))}
                   </select>
                 </label>
-                <label>
-                  Descrizione
-                  <textarea
-                    rows="3"
-                    value={transactionForm.description}
-                    onChange={(event) =>
-                      setTransactionForm((current) => ({ ...current, description: event.target.value }))
-                    }
-                    placeholder="Motivo del malus"
-                    required
-                  />
-                </label>
+                {isAdmin ? (
+                  <label>
+                    Descrizione
+                    <textarea
+                      rows="3"
+                      value={transactionForm.description}
+                      onChange={(event) =>
+                        setTransactionForm((current) => ({ ...current, description: event.target.value }))
+                      }
+                      placeholder="Motivo del malus"
+                      required
+                    />
+                  </label>
+                ) : (
+                  <label>
+                    Malus preimpostato
+                    <select
+                      value={transactionForm.ruleId}
+                      onChange={(event) =>
+                        setTransactionForm((current) => ({ ...current, ruleId: event.target.value }))
+                      }
+                      required
+                      disabled={!transactionForm.userId}
+                    >
+                      <option value="">Seleziona un malus</option>
+                      {(state.users.find((user) => user.id === Number(transactionForm.userId))?.malusRules || []).map(
+                        (rule) => (
+                          <option key={rule.id} value={rule.id}>
+                            {rule.description}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                )}
                 <button className="btn btn-primary" type="submit">
                   Registra malus
                 </button>
@@ -1083,13 +1133,19 @@ function App() {
 
             <article className="card">
               <h2>Vota le proposte</h2>
-              <label>
-                Il tuo nome (per votare)
-                <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
-              </label>
+              {currentUser ? (
+                <p className="muted">Stai votando come {currentUser.displayName}.</p>
+              ) : (
+                <label>
+                  Il tuo nome (per votare)
+                  <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
+                </label>
+              )}
               <div className="stack top-gap">
-                {state.proposals.length ? (
-                  [...state.proposals]
+                {publicLoading ? <p className="muted">Caricamento...</p> : null}
+                {publicError ? <p className="error-text">{publicError}</p> : null}
+                {!publicLoading && !publicError && publicProposals.length ? (
+                  [...publicProposals]
                     .sort((a, b) => b.votes.length - a.votes.length)
                     .map((proposal) => (
                       <div className="proposal-card" key={proposal.id}>
