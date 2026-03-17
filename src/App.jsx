@@ -1249,6 +1249,7 @@ function App() {
               </div>
             </article>
           </section>
+          <footer className="app-footer">Creato by Anselmo Acquah</footer>
         </div>
       </div>
     );
@@ -1261,7 +1262,7 @@ function App() {
           <p className="eyebrow">React rebuild</p>
           <h1>Fanta W2D</h1>
           <p className="muted">
-            Stessa base visuale della versione originale, dati locali modificabili dal pannello admin e flusso centrato solo sui malus.
+            Edizione 2026: malus, risate e zero scuse. Una bacheca per le leggende dell'ufficio.
           </p>
           <form onSubmit={login} className="stack">
             <label>
@@ -1289,6 +1290,7 @@ function App() {
           <button className="btn btn-accent top-gap" type="button" onClick={() => switchView("public")}>
             Vai alla bacheca pubblica malus
           </button>
+          <footer className="app-footer">Creato by Anselmo Acquah</footer>
         </div>
       </div>
     );
@@ -2034,6 +2036,7 @@ function App() {
             </article>
           </section>
         ) : null}
+        <footer className="app-footer">Creato by Anselmo Acquah</footer>
       </div>
     </div>
   );

@@ -360,6 +360,13 @@ th {
   width: 100%;
 }
 
+.app-footer {
+  margin: 28px 0 10px;
+  text-align: center;
+  font-weight: 700;
+  color: #5d6b7a;
+}
+
 .credential-box {
   margin-top: 18px;
   background: rgba(52, 152, 219, 0.05);
