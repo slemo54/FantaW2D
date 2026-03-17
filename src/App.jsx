@@ -118,46 +118,54 @@ function App() {
     setPublicLoading(true);
     setPublicError("");
 
-    const { data: proposalsData, error: proposalsError } = await supabase
-      .from("proposals")
-      .select("id, proposer_name, target_name, description, created_at")
-      .order("created_at", { ascending: false });
+    try {
+      const { data: proposalsData, error: proposalsError } = await supabase
+        .from("proposals")
+        .select("id, proposer_name, target_name, description, created_at")
+        .order("created_at", { ascending: false });
 
-    if (proposalsError) {
-      setPublicError("Errore nel caricamento delle proposte.");
-      setPublicLoading(false);
-      return;
-    }
-
-    const { data: votesData, error: votesError } = await supabase
-      .from("proposal_votes")
-      .select("proposal_id, voter_name_lower");
-
-    if (votesError) {
-      setPublicError("Errore nel caricamento dei voti.");
-      setPublicLoading(false);
-      return;
-    }
-
-    const voteMap = new Map();
-    votesData.forEach((vote) => {
-      if (!voteMap.has(vote.proposal_id)) {
-        voteMap.set(vote.proposal_id, []);
+      if (proposalsError) {
+        setPublicError(`Errore Supabase (proposte): ${proposalsError.message}`);
+        setPublicProposals(state.proposals);
+        setPublicLoading(false);
+        return;
       }
-      voteMap.get(vote.proposal_id).push(vote.voter_name_lower);
-    });
 
-    const merged = proposalsData.map((proposal) => ({
-      id: proposal.id,
-      proposerName: proposal.proposer_name,
-      targetName: proposal.target_name,
-      description: proposal.description,
-      createdAt: proposal.created_at,
-      votes: voteMap.get(proposal.id) || [],
-    }));
+      const { data: votesData, error: votesError } = await supabase
+        .from("proposal_votes")
+        .select("proposal_id, voter_name_lower");
 
-    setPublicProposals(merged);
-    setPublicLoading(false);
+      if (votesError) {
+        setPublicError(`Errore Supabase (voti): ${votesError.message}`);
+        setPublicProposals(state.proposals);
+        setPublicLoading(false);
+        return;
+      }
+
+      const voteMap = new Map();
+      votesData.forEach((vote) => {
+        if (!voteMap.has(vote.proposal_id)) {
+          voteMap.set(vote.proposal_id, []);
+        }
+        voteMap.get(vote.proposal_id).push(vote.voter_name_lower);
+      });
+
+      const merged = proposalsData.map((proposal) => ({
+        id: proposal.id,
+        proposerName: proposal.proposer_name,
+        targetName: proposal.target_name,
+        description: proposal.description,
+        createdAt: proposal.created_at,
+        votes: voteMap.get(proposal.id) || [],
+      }));
+
+      setPublicProposals(merged);
+      setPublicLoading(false);
+    } catch (error) {
+      setPublicError("Errore inatteso nel caricamento.");
+      setPublicProposals(state.proposals);
+      setPublicLoading(false);
+    }
   };
 
   useEffect(() => {
