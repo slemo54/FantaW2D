@@ -104,6 +104,13 @@ function App() {
     state.users.find((user) => user.id === Number(adminRuleUserId)) ??
     state.users.find((user) => user.role !== "admin") ??
     state.users[0];
+  const activeUsers = state.users.filter((user) => !user.isHidden && user.role !== "admin");
+  const usersWithoutMalus = activeUsers.filter((user) => {
+    const count = state.transactions.filter(
+      (transaction) => transaction.userId === user.id && !transaction.cancelled,
+    ).length;
+    return count < 1;
+  });
 
   const activeView = !currentUser
     ? state.currentView === "public"
@@ -429,23 +436,26 @@ function App() {
 
     const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
     const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === transactionForm.ruleId);
+    const resolvedMalusType = isAdmin
+      ? malusType
+      : state.malusTypes.find((item) => item.id === selectedRule?.malusTypeId);
     const description = isAdmin
       ? transactionForm.description.trim()
       : selectedRule?.description?.trim() || "";
 
-    if (!description) {
+    if (!description || !resolvedMalusType) {
       setNotice("Seleziona un malus gia impostato.");
       return;
     }
 
     getSupabaseClient().then((supabase) => {
-      if (supabase && malusType.dbId) {
+      if (supabase && resolvedMalusType?.dbId) {
         (async () => {
           const { error } = await supabase.from("transactions").insert({
             user_id: Number(transactionForm.userId),
             created_by: currentUser.id,
-            malus_type_id: malusType.dbId,
-            amount: Number(malusType.amount),
+            malus_type_id: resolvedMalusType.dbId,
+            amount: Number(resolvedMalusType.amount),
             description,
             cancelled: false,
           });
@@ -467,8 +477,8 @@ function App() {
               userId: Number(transactionForm.userId),
               createdBy: currentUser.id,
               type: "malus",
-              malusTypeId: malusType.id,
-              amount: Number(malusType.amount),
+              malusTypeId: resolvedMalusType.id,
+              amount: Number(resolvedMalusType.amount),
               description,
               cancelled: false,
               timestamp: new Date().toISOString(),
@@ -1167,6 +1177,12 @@ function App() {
             <article className="card">
               <h2>Proponi un malus</h2>
               <p className="muted">Nessun accesso richiesto. Inserisci solo il tuo nome.</p>
+              {usersWithoutMalus.length ? (
+                <div className="hint-card">
+                  <strong>Da colpire: </strong>
+                  {usersWithoutMalus.map((user) => user.displayName).join(", ")}
+                </div>
+              ) : null}
               <form className="stack" onSubmit={submitProposal}>
                 <label>
                   Il tuo nome
@@ -1203,49 +1219,48 @@ function App() {
                   Invia proposta
                 </button>
               </form>
-            </article>
-
-            <article className="card">
-              <h2>Vota le proposte</h2>
-              {currentUser ? (
-                <p className="muted">Stai votando come {currentUser.displayName}.</p>
-              ) : (
-                <label>
-                  Il tuo nome (per votare)
-                  <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
-                </label>
-              )}
-              <div className="stack top-gap">
-                {publicLoading ? <p className="muted">Caricamento...</p> : null}
-                {publicError ? <p className="error-text">{publicError}</p> : null}
-                {!publicLoading && !publicError && publicProposals.length ? (
-                  [...publicProposals]
-                    .sort((a, b) => b.votes.length - a.votes.length)
-                    .map((proposal) => (
-                      <div className="proposal-card" key={proposal.id}>
-                        <div className="proposal-header">
-                          <div>
-                            <strong>{proposal.targetName}</strong>
-                            <p className="muted">
-                              Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
-                            </p>
-                          </div>
-                          <div className="vote-count">{proposal.votes.length} voti</div>
-                        </div>
-                        <p>{proposal.description}</p>
-                        <button
-                          className="btn btn-accent"
-                          type="button"
-                          onClick={() => voteProposal(proposal.id)}
-                          disabled={!voteNameLower || proposal.votes.includes(voteNameLower)}
-                        >
-                          {proposal.votes.includes(voteNameLower) ? "Hai gia votato" : "Vota"}
-                        </button>
-                      </div>
-                    ))
+              <div className="top-gap">
+                <h3>Vota le proposte</h3>
+                {currentUser ? (
+                  <p className="muted">Stai votando come {currentUser.displayName}.</p>
                 ) : (
-                  <p className="muted">Nessuna proposta ancora.</p>
+                  <label>
+                    Il tuo nome (per votare)
+                    <input value={voteName} onChange={(event) => setVoteName(event.target.value)} />
+                  </label>
                 )}
+                <div className="stack top-gap">
+                  {publicLoading ? <p className="muted">Caricamento...</p> : null}
+                  {publicError ? <p className="error-text">{publicError}</p> : null}
+                  {!publicLoading && !publicError && publicProposals.length ? (
+                    [...publicProposals]
+                      .sort((a, b) => b.votes.length - a.votes.length)
+                      .map((proposal) => (
+                        <div className="proposal-card" key={proposal.id}>
+                          <div className="proposal-header">
+                            <div>
+                              <strong>{proposal.targetName}</strong>
+                              <p className="muted">
+                                Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
+                              </p>
+                            </div>
+                            <div className="vote-count">{proposal.votes.length} voti</div>
+                          </div>
+                          <p>{proposal.description}</p>
+                          <button
+                            className="btn btn-accent"
+                            type="button"
+                            onClick={() => voteProposal(proposal.id)}
+                            disabled={!voteNameLower || proposal.votes.includes(voteNameLower)}
+                          >
+                            {proposal.votes.includes(voteNameLower) ? "Hai gia votato" : "Vota"}
+                          </button>
+                        </div>
+                      ))
+                  ) : (
+                    !publicLoading && !publicError ? <p className="muted">Nessuna proposta ancora.</p> : null
+                  )}
+                </div>
               </div>
             </article>
           </section>
@@ -1385,23 +1400,25 @@ function App() {
                     ))}
                   </select>
                 </label>
-                <label>
-                  Tipo malus
-                  <select
-                    value={transactionForm.malusTypeId}
-                    onChange={(event) =>
-                      setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
-                    }
-                    required
-                  >
-                    <option value="">Seleziona</option>
-                    {state.malusTypes.map((malus) => (
-                      <option key={malus.id} value={malus.id}>
-                        {malus.name} - {formatCurrency(malus.amount)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {isAdmin ? (
+                  <label>
+                    Tipo malus
+                    <select
+                      value={transactionForm.malusTypeId}
+                      onChange={(event) =>
+                        setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
+                      }
+                      required
+                    >
+                      <option value="">Seleziona</option>
+                      {state.malusTypes.map((malus) => (
+                        <option key={malus.id} value={malus.id}>
+                          {malus.name} - {formatCurrency(malus.amount)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 {isAdmin ? (
                   <label>
                     Descrizione
@@ -1430,7 +1447,7 @@ function App() {
                       {(state.users.find((user) => user.id === Number(transactionForm.userId))?.malusRules || []).map(
                         (rule) => (
                           <option key={rule.id} value={rule.id}>
-                            {rule.description}
+                            {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
                           </option>
                         ),
                       )}
@@ -1510,7 +1527,9 @@ function App() {
                     <tr key={transaction.id} className={transaction.cancelled ? "cancelled" : ""}>
                       <td>{transaction.id}</td>
                       <td>{labelForUser(state.users, transaction.userId)}</td>
-                      <td>{labelForMalus(state.malusTypes, transaction.malusTypeId)}</td>
+                      <td>
+                        {labelForMalus(state.malusTypes, transaction.malusTypeId)} · {transaction.description}
+                      </td>
                       <td className="negative">-{formatCurrency(transaction.amount)}</td>
                       <td>{transaction.description}</td>
                       <td>{labelForUser(state.users, transaction.createdBy)}</td>
