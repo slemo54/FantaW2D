@@ -39,6 +39,32 @@ const AVATAR_OPTIONS = [
   { key: "avatar-14", label: "Icona #14", src: avatar14 },
 ];
 const avatarLookup = new Map(AVATAR_OPTIONS.map((option) => [option.key, option]));
+const GENERIC_MALUS_RULES = [
+  { id: "generic-1", malusTypeId: "malus-1", description: "un Ambassador VIA si ubriaca" },
+  { id: "generic-2", malusTypeId: "malus-1", description: "staff non rispetta il dress code" },
+  { id: "generic-3", malusTypeId: "malus-1", description: "ti lamenti / sbuffi / bestemmi" },
+  { id: "generic-4", malusTypeId: "malus-1", description: "un Ambassador VIA si addormenta" },
+  { id: "generic-5", malusTypeId: "malus-1", description: "il tecnico del suono si addormenta" },
+  { id: "generic-6", malusTypeId: "malus-1", description: 'Scienza menziona "Sangiovese"' },
+  { id: "generic-7", malusTypeId: "malus-1", description: "uso ludico del walkie talkie" },
+  { id: "generic-8", malusTypeId: "malus-1", description: "ti arrabbi" },
+  {
+    id: "generic-9",
+    malusTypeId: "malus-2",
+    description: "Daniele Cernilli cade su attrezzature fotografiche/informatiche",
+  },
+  { id: "generic-10", malusTypeId: "malus-2", description: "rompi un bicchiere" },
+  { id: "generic-11", malusTypeId: "malus-2", description: "Lonardi ti tocca" },
+  { id: "generic-12", malusTypeId: "malus-2", description: "vieni aggiunto a un nuovo gruppo su WeChat o WhatsApp" },
+  { id: "generic-13", malusTypeId: "malus-2", description: "dici di volerti licenziare" },
+  {
+    id: "generic-14",
+    malusTypeId: "malus-2",
+    description: "Stevie dimentica il tuo ruolo/nome durante la presentazione del team",
+  },
+  { id: "generic-15", malusTypeId: "malus-2", description: "non sei di turno durante un giorno della maratona" },
+  { id: "generic-16", malusTypeId: "malus-2", description: "ti ammali (al giorno)" },
+];
 
 const getSupabaseClient = async () => {
   if (supabaseInitTried) {
@@ -169,10 +195,16 @@ function App() {
   const voterDisplayName = currentUser?.displayName?.trim() || voteName.trim();
   const voteNameLower = useMemo(() => voterDisplayName.toLowerCase(), [voterDisplayName]);
 
-  const ruleForUserAndType = (userId, malusTypeId) => {
+  const rulesForUser = (userId) => {
     const user = state.users.find((item) => item.id === Number(userId));
-    return user?.malusRules?.find((rule) => rule.malusTypeId === malusTypeId) || null;
+    if (!user) {
+      return [...GENERIC_MALUS_RULES];
+    }
+    return [...(user.malusRules || []), ...GENERIC_MALUS_RULES];
   };
+
+  const ruleForUserAndType = (userId, malusTypeId) =>
+    rulesForUser(userId).find((rule) => rule.malusTypeId === malusTypeId) || null;
 
   const loadUsersFromSupabase = async () => {
     const supabase = await getSupabaseClient();
@@ -207,7 +239,7 @@ function App() {
         password: user.password_text || "user123",
         email: user.email || "",
         role: user.role,
-        isHidden: Boolean(user.is_hidden),
+        isHidden: Boolean(user.is_hidden) || user.display_name === "Michela Guerra",
         avatarKey: avatarLookup.has(user.avatar_key) ? user.avatar_key : DEFAULT_AVATAR_KEY,
         balance: 0,
         malusRules: [],
@@ -489,7 +521,9 @@ function App() {
     }
 
     const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
-    const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === transactionForm.ruleId);
+          const selectedRule = rulesForUser(transactionForm.userId).find(
+            (rule) => String(rule.id) === transactionForm.ruleId,
+          );
     const resolvedMalusType = isAdmin
       ? state.malusTypes.find((item) => item.id === transactionForm.malusTypeId)
       : state.malusTypes.find((item) => item.id === selectedRule?.malusTypeId);
@@ -1542,7 +1576,7 @@ function App() {
                       onChange={(event) => {
                         const nextRuleId = event.target.value;
                         const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
-                        const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === nextRuleId);
+        const selectedRule = rulesForUser(nextUserId).find((rule) => String(rule.id) === nextRuleId);
                         setTransactionForm((current) => ({
                           ...current,
                           ruleId: nextRuleId,
@@ -1553,13 +1587,11 @@ function App() {
                       disabled={!transactionForm.userId}
                     >
                       <option value="">Seleziona un malus</option>
-                      {(state.users.find((user) => user.id === Number(transactionForm.userId))?.malusRules || []).map(
-                        (rule) => (
-                          <option key={rule.id} value={rule.id}>
-                            {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
-                          </option>
-                        ),
-                      )}
+                      {rulesForUser(transactionForm.userId).map((rule) => (
+                        <option key={rule.id} value={rule.id}>
+                          {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 )}
@@ -1666,6 +1698,48 @@ function App() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="tx-cards">
+              {state.transactions.map((transaction) => {
+                const targetUser = findUser(state.users, transaction.userId);
+                const createdBy = findUser(state.users, transaction.createdBy);
+                return (
+                  <article className={`tx-card ${transaction.cancelled ? "cancelled" : ""}`} key={transaction.id}>
+                    <header className="tx-card-header">
+                      <UserAvatar user={targetUser} size="md" />
+                      <div className="tx-card-title">
+                        <strong>{labelForUser(state.users, transaction.userId)}</strong>
+                        <span className="muted">ID #{transaction.id}</span>
+                      </div>
+                      <div className={`tx-pill ${transaction.cancelled ? "muted" : "negative"}`}>
+                        -{formatCurrency(transaction.amount)}
+                      </div>
+                    </header>
+                    <div className="tx-card-body">
+                      <div className="tx-row">
+                        <span>Malus</span>
+                        <strong>{labelForMalus(state.malusTypes, transaction.malusTypeId)}</strong>
+                      </div>
+                      <div className="tx-row">
+                        <span>Motivo</span>
+                        <strong>{transaction.description || "-"}</strong>
+                      </div>
+                      <div className="tx-row">
+                        <span>Creato da</span>
+                        <strong>{labelForUser(state.users, transaction.createdBy)}</strong>
+                      </div>
+                      <div className="tx-row">
+                        <span>Data</span>
+                        <strong>{formatDate(transaction.timestamp)}</strong>
+                      </div>
+                      <div className="tx-row">
+                        <span>Stato</span>
+                        <strong>{transaction.cancelled ? "Annullato" : "Attivo"}</strong>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         ) : null}

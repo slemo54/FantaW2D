@@ -469,6 +469,79 @@ th {
   background: linear-gradient(120deg, var(--primary-color), #9b87ff);
 }
 
+.tx-cards {
+  display: none;
+  margin-top: 16px;
+  gap: 14px;
+}
+
+.tx-card {
+  background: white;
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+}
+
+.tx-card.cancelled {
+  opacity: 0.65;
+}
+
+.tx-card-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tx-card-title {
+  display: grid;
+  gap: 4px;
+}
+
+.tx-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  background: rgba(244, 114, 182, 0.18);
+  color: #a8244e;
+  white-space: nowrap;
+}
+
+.tx-card-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.tx-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 0.95rem;
+}
+
+.tx-row span {
+  color: #6d7186;
+  font-weight: 600;
+}
+
+.tx-row strong {
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .table-wrap {
+    display: none;
+  }
+
+  .tx-cards {
+    display: grid;
+  }
+}
+
 .login-shell {
   display: grid;
   place-items: center;

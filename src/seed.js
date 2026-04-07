@@ -57,10 +57,6 @@ const ruleSeeds = {
       "malus-2",
       "If he starts talking about random things (philosophical, historical, sociological, political)",
     ],
-    [
-      "malus-3",
-      "If in the middle of the conversation, he leaves but keeps the conversation going from another room/location",
-    ],
   ],
   "Andrea Mattei": [["malus-1", "If any woman or man flirts with him"]],
   "Anselmo Acquah": [
@@ -73,18 +69,14 @@ const ruleSeeds = {
   ],
   "Cynthia Chaplin": [['malus-1', 'If he/she nods while saying "mmh" or "mhh."']],
   "Davide Zanella": [["malus-1", "If he sleeps in the afternoon"]],
-  "Federico Zocca": [
-    ['malus-1', 'If he says "dimmi"'],
-    ["malus-3", "If he has to take any institutional photos (Zoppas, Ministro, VF)"],
-  ],
+  "Federico Zocca": [['malus-1', 'If he says "dimmi"']],
   "Giorgia Rangoni": [['malus-1', 'If she says "Zio Can" or "Mona" or "Fra"']],
   "Karla Ravagnolo": [['malus-1', 'If she says "Cute" or "Fuah" or "Daaaamn" or "Girrrl"']],
   "Manuela Clarizia": [
     ["malus-1", "If she calls any andrea 3 times in a row screaming"],
     ["malus-2", "If she has to modify a transfer"],
-    ["malus-3", "If somebody calls her Clarizia"],
   ],
-  "Marina Lovato": [['malus-1', 'If Stevie says she is "la memoria storica/pilastro"']],
+  "Marina Lovato": [['malus-1', 'Se Stevie fa la memoria storica / pilastro']],
   "Miriam Ferrari": [["malus-1", "If she mentions any words in venetian dialect"]],
   "Roza Zharmukhambetova": [["malus-1", "If Stevie says trust me when planning for a podcast series"]],
   "Richard Hough": [["malus-1", "If he changes his hat"]],
@@ -107,7 +99,7 @@ export const createInitialState = () => {
     email,
     avatarKey: avatarKeys[index % avatarKeys.length],
     balance: 0,
-    isHidden: false,
+    isHidden: displayName === "Michela Guerra",
     malusRules: (ruleSeeds[displayName] || []).map(([malusTypeId, description]) => ({
       id: nextRuleId++,
       malusTypeId,
