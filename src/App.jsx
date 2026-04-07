@@ -102,6 +102,7 @@ const emptyTransactionForm = {
   description: "",
   ruleId: "",
   ruleSource: "",
+  applyToAll: false,
 };
 
 const emptyProposalForm = {
