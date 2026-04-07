@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { createInitialState, deriveState, formatCurrency } from "./seed";
-import avatarPlaceholder from "./assets/avatar-placeholder.svg";
+import avatar01 from "./assets/avatars/icon-01ltktums.png";
+import avatar02 from "./assets/avatars/icon-02uzxlcm4.png";
+import avatar03 from "./assets/avatars/icon-07a1u9v3j.png";
+import avatar04 from "./assets/avatars/icon-8q1p8t62l.png";
+import avatar05 from "./assets/avatars/icon-dm1l1oa5i.png";
+import avatar06 from "./assets/avatars/icon-f1d16gfjd.png";
+import avatar07 from "./assets/avatars/icon-i3c0vwgxw.png";
+import avatar08 from "./assets/avatars/icon-lpvp6wdx8.png";
+import avatar09 from "./assets/avatars/icon-sqhjgctbh.png";
+import avatar10 from "./assets/avatars/icon-tfbc81bkm.png";
 
 const STORAGE_KEY = "fantaw2d-react-state-v1";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -8,16 +17,18 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let supabaseClient = null;
 let supabaseInitTried = false;
 
-const DEFAULT_AVATAR_KEY = "placeholder-1";
+const DEFAULT_AVATAR_KEY = "avatar-01";
 const AVATAR_OPTIONS = [
-  { key: "placeholder-1", label: "Omino #1", tone: "tone-1" },
-  { key: "placeholder-2", label: "Omino #2", tone: "tone-2" },
-  { key: "placeholder-3", label: "Omino #3", tone: "tone-3" },
-  { key: "placeholder-4", label: "Omino #4", tone: "tone-4" },
-  { key: "placeholder-5", label: "Omino #5", tone: "tone-5" },
-  { key: "placeholder-6", label: "Omino #6", tone: "tone-6" },
-  { key: "placeholder-7", label: "Omino #7", tone: "tone-7" },
-  { key: "placeholder-8", label: "Omino #8", tone: "tone-8" },
+  { key: "avatar-01", label: "Icona #1", src: avatar01 },
+  { key: "avatar-02", label: "Icona #2", src: avatar02 },
+  { key: "avatar-03", label: "Icona #3", src: avatar03 },
+  { key: "avatar-04", label: "Icona #4", src: avatar04 },
+  { key: "avatar-05", label: "Icona #5", src: avatar05 },
+  { key: "avatar-06", label: "Icona #6", src: avatar06 },
+  { key: "avatar-07", label: "Icona #7", src: avatar07 },
+  { key: "avatar-08", label: "Icona #8", src: avatar08 },
+  { key: "avatar-09", label: "Icona #9", src: avatar09 },
+  { key: "avatar-10", label: "Icona #10", src: avatar10 },
 ];
 const avatarLookup = new Map(AVATAR_OPTIONS.map((option) => [option.key, option]));
 
@@ -189,7 +200,7 @@ function App() {
         email: user.email || "",
         role: user.role,
         isHidden: Boolean(user.is_hidden),
-        avatarKey: user.avatar_key || DEFAULT_AVATAR_KEY,
+        avatarKey: avatarLookup.has(user.avatar_key) ? user.avatar_key : DEFAULT_AVATAR_KEY,
         balance: 0,
         malusRules: [],
       }));
@@ -656,7 +667,7 @@ function App() {
       email: user.email || "",
       role: user.role,
       isHidden: user.isHidden || false,
-      avatarKey: user.avatarKey || DEFAULT_AVATAR_KEY,
+      avatarKey: avatarLookup.has(user.avatarKey) ? user.avatarKey : DEFAULT_AVATAR_KEY,
     });
   };
 
@@ -672,7 +683,7 @@ function App() {
       email: userForm.email.trim(),
       role: userForm.role,
       isHidden: userForm.isHidden,
-      avatarKey: userForm.avatarKey || DEFAULT_AVATAR_KEY,
+      avatarKey: avatarLookup.has(userForm.avatarKey) ? userForm.avatarKey : DEFAULT_AVATAR_KEY,
     };
 
     getSupabaseClient().then((supabase) => {
@@ -2213,7 +2224,7 @@ function UserAvatar({ user, size = "md" }) {
 
   return (
     <div className={`avatar avatar-${size} ${meta?.tone || "tone-1"}`} title={label}>
-      <img src={avatarPlaceholder} alt="" aria-hidden="true" />
+      <img src={meta?.src || avatar01} alt="" aria-hidden="true" />
     </div>
   );
 }
