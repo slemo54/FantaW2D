@@ -377,6 +377,18 @@ textarea {
   box-shadow: 0 8px 16px rgba(31, 42, 68, 0.08);
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
 .transaction-item.cancelled,
 tr.cancelled {
   opacity: 0.6;
@@ -480,6 +492,7 @@ th {
   border-radius: 18px;
   padding: 14px 16px;
   box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+  width: 100%;
 }
 
 .tx-card.cancelled {
@@ -498,6 +511,7 @@ th {
 .tx-card-title {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .tx-pill {
@@ -516,10 +530,10 @@ th {
 }
 
 .tx-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
   gap: 12px;
-  align-items: baseline;
+  align-items: start;
   font-size: 0.95rem;
 }
 
@@ -529,7 +543,8 @@ th {
 }
 
 .tx-row strong {
-  text-align: right;
+  text-align: left;
+  word-break: break-word;
 }
 
 @media (max-width: 900px) {
@@ -698,6 +713,39 @@ th {
 
   .filter-row {
     gap: 6px;
+  }
+
+  .tx-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .tx-card-header {
+    grid-template-columns: auto 1fr;
+  }
+
+  .tx-pill {
+    grid-column: span 2;
+    justify-self: flex-start;
+  }
+
+  .tx-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .tx-row strong {
+    font-size: 1rem;
+  }
+
+  .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  .nav-tabs button {
+    white-space: nowrap;
   }
 }
 

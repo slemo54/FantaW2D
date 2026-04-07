@@ -96,14 +96,14 @@ const emptyUserForm = {
   avatarKey: DEFAULT_AVATAR_KEY,
 };
 
-const emptyTransactionForm = {
-  userId: "",
-  malusTypeId: "",
-  description: "",
-  ruleId: "",
-  ruleSource: "",
-  applyToAll: false,
-};
+  const emptyTransactionForm = {
+    userId: "",
+    malusTypeId: "",
+    description: "",
+    ruleId: "",
+    ruleSource: "",
+    applyToAll: false,
+  };
 
 const emptyProposalForm = {
   proposerName: "",
@@ -537,7 +537,10 @@ function App() {
     const description =
       transactionForm.description.trim() || selectedRule?.description?.trim() || "";
 
-    if (!transactionForm.userId || !resolvedMalusType) {
+    const applyToAll = isAdmin && transactionForm.applyToAll;
+    const targetUsers = applyToAll ? activeUsers : [];
+
+    if ((applyToAll && targetUsers.length === 0) || (!applyToAll && !transactionForm.userId) || !resolvedMalusType) {
       setNotice("Seleziona utente e malus.");
       return;
     }
@@ -550,45 +553,86 @@ function App() {
     getSupabaseClient().then((supabase) => {
       if (supabase && resolvedMalusType?.dbId) {
         (async () => {
-          const { error } = await supabase.from("transactions").insert({
-            user_id: Number(transactionForm.userId),
-            created_by: currentUser.id,
-            malus_type_id: resolvedMalusType.dbId,
-            amount: Number(resolvedMalusType.amount),
-            description,
-            cancelled: false,
-          });
+          const payload = applyToAll
+            ? targetUsers.map((user) => ({
+                user_id: user.id,
+                created_by: currentUser.id,
+                malus_type_id: resolvedMalusType.dbId,
+                amount: Number(resolvedMalusType.amount),
+                description,
+                cancelled: false,
+              }))
+            : [
+                {
+                  user_id: Number(transactionForm.userId),
+                  created_by: currentUser.id,
+                  malus_type_id: resolvedMalusType.dbId,
+                  amount: Number(resolvedMalusType.amount),
+                  description,
+                  cancelled: false,
+                },
+              ];
+
+          const { error } = await supabase.from("transactions").insert(payload);
 
           if (error) {
             setNotice(`Errore Supabase (transazioni): ${error.message}`);
             return;
           }
 
-          setNotice("Malus registrato.");
+          setNotice(applyToAll ? "Malus registrato per tutti." : "Malus registrato.");
           loadTransactionsFromSupabase();
         })();
       } else {
-        updateState((current) => ({
-          ...current,
-          transactions: [
-            {
-              id: current.nextIds.transaction,
-              userId: Number(transactionForm.userId),
-              createdBy: currentUser.id,
-              type: "malus",
-              malusTypeId: resolvedMalusType.id,
-              amount: Number(resolvedMalusType.amount),
-              description,
-              cancelled: false,
-              timestamp: new Date().toISOString(),
-            },
-            ...current.transactions,
-          ],
-          nextIds: {
-            ...current.nextIds,
-            transaction: current.nextIds.transaction + 1,
+        updateState(
+          (current) => {
+            const timestamp = new Date().toISOString();
+            if (applyToAll) {
+              const createdTransactions = targetUsers.map((user, index) => ({
+                id: current.nextIds.transaction + index,
+                userId: user.id,
+                createdBy: currentUser.id,
+                type: "malus",
+                malusTypeId: resolvedMalusType.id,
+                amount: Number(resolvedMalusType.amount),
+                description,
+                cancelled: false,
+                timestamp,
+              }));
+              return {
+                ...current,
+                transactions: [...createdTransactions, ...current.transactions],
+                nextIds: {
+                  ...current.nextIds,
+                  transaction: current.nextIds.transaction + createdTransactions.length,
+                },
+              };
+            }
+
+            return {
+              ...current,
+              transactions: [
+                {
+                  id: current.nextIds.transaction,
+                  userId: Number(transactionForm.userId),
+                  createdBy: currentUser.id,
+                  type: "malus",
+                  malusTypeId: resolvedMalusType.id,
+                  amount: Number(resolvedMalusType.amount),
+                  description,
+                  cancelled: false,
+                  timestamp,
+                },
+                ...current.transactions,
+              ],
+              nextIds: {
+                ...current.nextIds,
+                transaction: current.nextIds.transaction + 1,
+              },
+            };
           },
-        }), "Malus registrato.");
+          applyToAll ? "Malus registrato per tutti." : "Malus registrato.",
+        );
       }
     });
 
@@ -1535,11 +1579,13 @@ function App() {
                           userId: nextUserId,
                           ruleId: "",
                           ruleSource: "",
+                          applyToAll: false,
                           description: selectedRule?.description || "",
                         };
                       })
                     }
                     required
+                    disabled={isAdmin && transactionForm.applyToAll}
                   >
                     <option value="">Seleziona</option>
                     {assignableUsers.map((user) => (
@@ -1549,6 +1595,24 @@ function App() {
                     ))}
                   </select>
                 </label>
+                {isAdmin ? (
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={transactionForm.applyToAll}
+                      onChange={(event) =>
+                        setTransactionForm((current) => ({
+                          ...current,
+                          applyToAll: event.target.checked,
+                          userId: event.target.checked ? "" : current.userId,
+                          ruleId: "",
+                          ruleSource: "",
+                        }))
+                      }
+                    />
+                    Assegna a tutti gli utenti attivi
+                  </label>
+                ) : null}
                 {isAdmin ? (
                   <label>
                     Tipo malus
