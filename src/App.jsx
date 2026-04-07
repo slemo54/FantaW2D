@@ -441,19 +441,17 @@ function App() {
       return;
     }
 
-    const malusType = state.malusTypes.find((item) => item.id === transactionForm.malusTypeId);
-    if (!malusType || !transactionForm.userId) {
+    if (!transactionForm.userId) {
       return;
     }
 
+    const malusType = state.malusTypes.find((item) => item.id === transactionForm.malusTypeId);
     const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
     const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === transactionForm.ruleId);
     const resolvedMalusType = isAdmin
       ? malusType
       : state.malusTypes.find((item) => item.id === selectedRule?.malusTypeId);
-    const description = isAdmin
-      ? transactionForm.description.trim()
-      : selectedRule?.description?.trim() || "";
+    const description = transactionForm.description.trim();
 
     if (!description || !resolvedMalusType) {
       setNotice("Seleziona un malus gia impostato.");
@@ -1408,11 +1406,20 @@ function App() {
                   <select
                     value={transactionForm.userId}
                     onChange={(event) =>
-                      setTransactionForm((current) => ({
-                        ...current,
-                        userId: event.target.value,
-                        ruleId: "",
-                      }))
+                      setTransactionForm((current) => {
+                        const newUserId = event.target.value;
+                        const targetUser = state.users.find((u) => u.id === Number(newUserId));
+                        const selectedRule = targetUser?.malusRules?.find(
+                          (r) => String(r.malusTypeId) === String(current.malusTypeId)
+                        );
+                        const newDescription = isAdmin && selectedRule ? selectedRule.description : "";
+                        return {
+                          ...current,
+                          userId: newUserId,
+                          ruleId: "",
+                          description: newDescription,
+                        };
+                      })
                     }
                     required
                   >
@@ -1429,9 +1436,17 @@ function App() {
                     Tipo malus
                     <select
                       value={transactionForm.malusTypeId}
-                      onChange={(event) =>
-                        setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
-                      }
+                      onChange={(event) => {
+                        const newMalusTypeId = event.target.value;
+                        setTransactionForm((current) => {
+                          const targetUser = state.users.find((u) => u.id === Number(current.userId));
+                          const selectedRule = targetUser?.malusRules?.find(
+                            (r) => String(r.malusTypeId) === String(newMalusTypeId)
+                          );
+                          const newDescription = selectedRule ? selectedRule.description : "";
+                          return { ...current, malusTypeId: newMalusTypeId, description: newDescription };
+                        });
+                      }}
                       required
                     >
                       <option value="">Seleziona</option>
@@ -1443,27 +1458,20 @@ function App() {
                     </select>
                   </label>
                 ) : null}
-                {isAdmin ? (
-                  <label>
-                    Descrizione
-                    <textarea
-                      rows="3"
-                      value={transactionForm.description}
-                      onChange={(event) =>
-                        setTransactionForm((current) => ({ ...current, description: event.target.value }))
-                      }
-                      placeholder="Motivo del malus"
-                      required
-                    />
-                  </label>
-                ) : (
+                {!isAdmin ? (
                   <label>
                     Malus preimpostato
                     <select
                       value={transactionForm.ruleId}
-                      onChange={(event) =>
-                        setTransactionForm((current) => ({ ...current, ruleId: event.target.value }))
-                      }
+                      onChange={(event) => {
+                        const newRuleId = event.target.value;
+                        setTransactionForm((current) => {
+                          const targetUser = state.users.find((u) => u.id === Number(current.userId));
+                          const selectedRule = targetUser?.malusRules?.find((r) => String(r.id) === String(newRuleId));
+                          const newDescription = selectedRule ? selectedRule.description : "";
+                          return { ...current, ruleId: newRuleId, description: newDescription };
+                        });
+                      }}
                       required
                       disabled={!transactionForm.userId}
                     >
@@ -1477,7 +1485,19 @@ function App() {
                       )}
                     </select>
                   </label>
-                )}
+                ) : null}
+                <label>
+                  Descrizione
+                  <textarea
+                    rows="3"
+                    value={transactionForm.description}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    placeholder="Motivo del malus"
+                    required
+                  />
+                </label>
                 <button className="btn btn-primary" type="submit">
                   Registra malus
                 </button>
