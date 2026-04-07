@@ -101,6 +101,7 @@ const emptyTransactionForm = {
   malusTypeId: "",
   description: "",
   ruleId: "",
+  ruleSource: "",
 };
 
 const emptyProposalForm = {
@@ -525,10 +526,10 @@ function App() {
       return;
     }
 
-    const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
-          const selectedRule = rulesForUser(transactionForm.userId).find(
-            (rule) => String(rule.id) === transactionForm.ruleId,
-          );
+    const selectedRule =
+      transactionForm.ruleSource === "generic"
+        ? GENERIC_MALUS_RULES.find((rule) => String(rule.id) === transactionForm.ruleId)
+        : personalRulesForUser(transactionForm.userId).find((rule) => String(rule.id) === transactionForm.ruleId);
     const resolvedMalusType = isAdmin
       ? state.malusTypes.find((item) => item.id === transactionForm.malusTypeId)
       : state.malusTypes.find((item) => item.id === selectedRule?.malusTypeId);
@@ -1527,11 +1528,12 @@ function App() {
                     onChange={(event) =>
                       setTransactionForm((current) => {
                         const nextUserId = event.target.value;
-                        const selectedRule = ruleForUserAndType(nextUserId, current.malusTypeId);
+                        const selectedRule = isAdmin ? ruleForUserAndType(nextUserId, current.malusTypeId) : null;
                         return {
                           ...current,
                           userId: nextUserId,
                           ruleId: "",
+                          ruleSource: "",
                           description: selectedRule?.description || "",
                         };
                       })
@@ -1577,37 +1579,50 @@ function App() {
                   <label>
                     Malus preimpostato
                     <select
-                      value={transactionForm.ruleId}
+                      value={transactionForm.ruleSource === "personal" ? transactionForm.ruleId : ""}
                       onChange={(event) => {
                         const nextRuleId = event.target.value;
-                        const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
-        const selectedRule = rulesForUser(nextUserId).find((rule) => String(rule.id) === nextRuleId);
+                        const selectedRule = personalRulesForUser(transactionForm.userId).find(
+                          (rule) => String(rule.id) === nextRuleId,
+                        );
                         setTransactionForm((current) => ({
                           ...current,
                           ruleId: nextRuleId,
+                          ruleSource: nextRuleId ? "personal" : "",
                           description: selectedRule?.description || "",
                         }));
                       }}
-                      required
                       disabled={!transactionForm.userId}
                     >
-                      <option value="">Seleziona un malus</option>
-                      {personalRulesForUser(transactionForm.userId).length > 0 ? (
-                        <optgroup label="Malus personali">
-                          {personalRulesForUser(transactionForm.userId).map((rule) => (
-                            <option key={rule.id} value={rule.id}>
-                              {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ) : null}
-                      <optgroup label="Malus generici">
-                        {GENERIC_MALUS_RULES.map((rule) => (
-                          <option key={rule.id} value={rule.id}>
-                            {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
-                          </option>
-                        ))}
-                      </optgroup>
+                      <option value="">Malus personali</option>
+                      {personalRulesForUser(transactionForm.userId).map((rule) => (
+                        <option key={rule.id} value={rule.id}>
+                          {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={transactionForm.ruleSource === "generic" ? transactionForm.ruleId : ""}
+                      onChange={(event) => {
+                        const nextRuleId = event.target.value;
+                        const selectedRule = GENERIC_MALUS_RULES.find(
+                          (rule) => String(rule.id) === nextRuleId,
+                        );
+                        setTransactionForm((current) => ({
+                          ...current,
+                          ruleId: nextRuleId,
+                          ruleSource: nextRuleId ? "generic" : "",
+                          description: selectedRule?.description || "",
+                        }));
+                      }}
+                      disabled={!transactionForm.userId}
+                    >
+                      <option value="">Malus generici</option>
+                      {GENERIC_MALUS_RULES.map((rule) => (
+                        <option key={rule.id} value={rule.id}>
+                          {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 )}
