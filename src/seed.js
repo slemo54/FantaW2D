@@ -43,6 +43,10 @@ const avatarKeys = [
   "avatar-08",
   "avatar-09",
   "avatar-10",
+  "avatar-11",
+  "avatar-12",
+  "avatar-13",
+  "avatar-14",
 ];
 
 const ruleSeeds = {

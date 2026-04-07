@@ -3,13 +3,17 @@ import { createInitialState, deriveState, formatCurrency } from "./seed";
 import avatar01 from "./assets/avatars/icon-01ltktums.png";
 import avatar02 from "./assets/avatars/icon-02uzxlcm4.png";
 import avatar03 from "./assets/avatars/icon-07a1u9v3j.png";
+import avatar11 from "./assets/avatars/icon-7ry6indxu.png";
 import avatar04 from "./assets/avatars/icon-8q1p8t62l.png";
 import avatar05 from "./assets/avatars/icon-dm1l1oa5i.png";
 import avatar06 from "./assets/avatars/icon-f1d16gfjd.png";
+import avatar12 from "./assets/avatars/icon-hpc6ci2eu.png";
 import avatar07 from "./assets/avatars/icon-i3c0vwgxw.png";
 import avatar08 from "./assets/avatars/icon-lpvp6wdx8.png";
+import avatar13 from "./assets/avatars/icon-pze9uj0dx.png";
 import avatar09 from "./assets/avatars/icon-sqhjgctbh.png";
 import avatar10 from "./assets/avatars/icon-tfbc81bkm.png";
+import avatar14 from "./assets/avatars/VeniceAI_uyhlusi.png";
 
 const STORAGE_KEY = "fantaw2d-react-state-v1";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -29,6 +33,10 @@ const AVATAR_OPTIONS = [
   { key: "avatar-08", label: "Icona #8", src: avatar08 },
   { key: "avatar-09", label: "Icona #9", src: avatar09 },
   { key: "avatar-10", label: "Icona #10", src: avatar10 },
+  { key: "avatar-11", label: "Icona #11", src: avatar11 },
+  { key: "avatar-12", label: "Icona #12", src: avatar12 },
+  { key: "avatar-13", label: "Icona #13", src: avatar13 },
+  { key: "avatar-14", label: "Icona #14", src: avatar14 },
 ];
 const avatarLookup = new Map(AVATAR_OPTIONS.map((option) => [option.key, option]));
 
