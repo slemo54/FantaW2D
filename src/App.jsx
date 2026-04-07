@@ -203,6 +203,11 @@ function App() {
     return [...(user.malusRules || []), ...GENERIC_MALUS_RULES];
   };
 
+  const personalRulesForUser = (userId) => {
+    const user = state.users.find((item) => item.id === Number(userId));
+    return user?.malusRules || [];
+  };
+
   const ruleForUserAndType = (userId, malusTypeId) =>
     rulesForUser(userId).find((rule) => rule.malusTypeId === malusTypeId) || null;
 
@@ -1587,11 +1592,22 @@ function App() {
                       disabled={!transactionForm.userId}
                     >
                       <option value="">Seleziona un malus</option>
-                      {rulesForUser(transactionForm.userId).map((rule) => (
-                        <option key={rule.id} value={rule.id}>
-                          {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
-                        </option>
-                      ))}
+                      {personalRulesForUser(transactionForm.userId).length > 0 ? (
+                        <optgroup label="Malus personali">
+                          {personalRulesForUser(transactionForm.userId).map((rule) => (
+                            <option key={rule.id} value={rule.id}>
+                              {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      <optgroup label="Malus generici">
+                        {GENERIC_MALUS_RULES.map((rule) => (
+                          <option key={rule.id} value={rule.id}>
+                            {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                   </label>
                 )}
