@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { createInitialState, deriveState, formatCurrency } from "./seed";
+import avatarPlaceholder from "./assets/avatar-placeholder.svg";
 
 const STORAGE_KEY = "fantaw2d-react-state-v1";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let supabaseClient = null;
 let supabaseInitTried = false;
+
+const DEFAULT_AVATAR_KEY = "placeholder-1";
+const AVATAR_OPTIONS = [
+  { key: "placeholder-1", label: "Omino #1", tone: "tone-1" },
+  { key: "placeholder-2", label: "Omino #2", tone: "tone-2" },
+  { key: "placeholder-3", label: "Omino #3", tone: "tone-3" },
+  { key: "placeholder-4", label: "Omino #4", tone: "tone-4" },
+  { key: "placeholder-5", label: "Omino #5", tone: "tone-5" },
+  { key: "placeholder-6", label: "Omino #6", tone: "tone-6" },
+  { key: "placeholder-7", label: "Omino #7", tone: "tone-7" },
+  { key: "placeholder-8", label: "Omino #8", tone: "tone-8" },
+];
+const avatarLookup = new Map(AVATAR_OPTIONS.map((option) => [option.key, option]));
 
 const getSupabaseClient = async () => {
   if (supabaseInitTried) {
@@ -34,6 +48,7 @@ const emptyUserForm = {
   email: "",
   role: "user",
   isHidden: false,
+  avatarKey: DEFAULT_AVATAR_KEY,
 };
 
 const emptyTransactionForm = {
@@ -135,6 +150,11 @@ function App() {
   const voterDisplayName = currentUser?.displayName?.trim() || voteName.trim();
   const voteNameLower = useMemo(() => voterDisplayName.toLowerCase(), [voterDisplayName]);
 
+  const ruleForUserAndType = (userId, malusTypeId) => {
+    const user = state.users.find((item) => item.id === Number(userId));
+    return user?.malusRules?.find((rule) => rule.malusTypeId === malusTypeId) || null;
+  };
+
   const loadUsersFromSupabase = async () => {
     const supabase = await getSupabaseClient();
     if (!supabase) {
@@ -142,10 +162,17 @@ function App() {
     }
 
     setUsersLoading(true);
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("users")
-      .select("id, username, display_name, password_text, email, role, is_hidden")
+      .select("id, username, display_name, password_text, email, role, is_hidden, avatar_key")
       .order("id", { ascending: true });
+
+    if (error && error.message?.includes("avatar_key")) {
+      ({ data, error } = await supabase
+        .from("users")
+        .select("id, username, display_name, password_text, email, role, is_hidden")
+        .order("id", { ascending: true }));
+    }
 
     if (error) {
       setNotice(`Errore Supabase (utenti): ${error.message}`);
@@ -162,6 +189,7 @@ function App() {
         email: user.email || "",
         role: user.role,
         isHidden: Boolean(user.is_hidden),
+        avatarKey: user.avatar_key || DEFAULT_AVATAR_KEY,
         balance: 0,
         malusRules: [],
       }));
@@ -441,21 +469,20 @@ function App() {
       return;
     }
 
-    const malusType = state.malusTypes.find((item) => item.id === transactionForm.malusTypeId);
-    if (!malusType || !transactionForm.userId) {
-      return;
-    }
-
     const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
     const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === transactionForm.ruleId);
     const resolvedMalusType = isAdmin
-      ? malusType
+      ? state.malusTypes.find((item) => item.id === transactionForm.malusTypeId)
       : state.malusTypes.find((item) => item.id === selectedRule?.malusTypeId);
-    const description = isAdmin
-      ? transactionForm.description.trim()
-      : selectedRule?.description?.trim() || "";
+    const description =
+      transactionForm.description.trim() || selectedRule?.description?.trim() || "";
 
-    if (!description || !resolvedMalusType) {
+    if (!transactionForm.userId || !resolvedMalusType) {
+      setNotice("Seleziona utente e malus.");
+      return;
+    }
+
+    if (!description) {
       setNotice("Seleziona un malus gia impostato.");
       return;
     }
@@ -629,6 +656,7 @@ function App() {
       email: user.email || "",
       role: user.role,
       isHidden: user.isHidden || false,
+      avatarKey: user.avatarKey || DEFAULT_AVATAR_KEY,
     });
   };
 
@@ -644,6 +672,7 @@ function App() {
       email: userForm.email.trim(),
       role: userForm.role,
       isHidden: userForm.isHidden,
+      avatarKey: userForm.avatarKey || DEFAULT_AVATAR_KEY,
     };
 
     getSupabaseClient().then((supabase) => {
@@ -659,6 +688,7 @@ function App() {
                 email: nextPayload.email || null,
                 role: nextPayload.role,
                 is_hidden: nextPayload.isHidden,
+                avatar_key: nextPayload.avatarKey,
               })
               .eq("id", editingUserId);
 
@@ -677,6 +707,7 @@ function App() {
               email: nextPayload.email || null,
               role: nextPayload.role,
               is_hidden: nextPayload.isHidden,
+              avatar_key: nextPayload.avatarKey,
             });
 
             if (error) {
@@ -712,6 +743,7 @@ function App() {
                       email: nextPayload.email,
                       role: nextPayload.role,
                       isHidden: nextPayload.isHidden,
+                      avatarKey: nextPayload.avatarKey,
                     }
                   : user,
               ),
@@ -730,6 +762,7 @@ function App() {
                 email: nextPayload.email,
                 role: nextPayload.role,
                 isHidden: nextPayload.isHidden,
+                avatarKey: nextPayload.avatarKey,
                 balance: 0,
                 malusRules: [],
               },
@@ -1348,6 +1381,7 @@ function App() {
           </div>
           {currentUser ? (
             <div className="user-strip">
+              <UserAvatar user={currentUser} size="sm" />
               <div>
                 <strong>{currentUser.displayName}</strong>
                 <p className="muted">{currentUser.role === "admin" ? "Accesso amministratore" : "Utente standard"}</p>
@@ -1408,11 +1442,16 @@ function App() {
                   <select
                     value={transactionForm.userId}
                     onChange={(event) =>
-                      setTransactionForm((current) => ({
-                        ...current,
-                        userId: event.target.value,
-                        ruleId: "",
-                      }))
+                      setTransactionForm((current) => {
+                        const nextUserId = event.target.value;
+                        const selectedRule = ruleForUserAndType(nextUserId, current.malusTypeId);
+                        return {
+                          ...current,
+                          userId: nextUserId,
+                          ruleId: "",
+                          description: selectedRule?.description || "",
+                        };
+                      })
                     }
                     required
                   >
@@ -1430,7 +1469,15 @@ function App() {
                     <select
                       value={transactionForm.malusTypeId}
                       onChange={(event) =>
-                        setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
+                        setTransactionForm((current) => {
+                          const nextMalusType = event.target.value;
+                          const selectedRule = ruleForUserAndType(current.userId, nextMalusType);
+                          return {
+                            ...current,
+                            malusTypeId: nextMalusType,
+                            description: selectedRule?.description || current.description,
+                          };
+                        })
                       }
                       required
                     >
@@ -1443,27 +1490,21 @@ function App() {
                     </select>
                   </label>
                 ) : null}
-                {isAdmin ? (
-                  <label>
-                    Descrizione
-                    <textarea
-                      rows="3"
-                      value={transactionForm.description}
-                      onChange={(event) =>
-                        setTransactionForm((current) => ({ ...current, description: event.target.value }))
-                      }
-                      placeholder="Motivo del malus"
-                      required
-                    />
-                  </label>
-                ) : (
+                {isAdmin ? null : (
                   <label>
                     Malus preimpostato
                     <select
                       value={transactionForm.ruleId}
-                      onChange={(event) =>
-                        setTransactionForm((current) => ({ ...current, ruleId: event.target.value }))
-                      }
+                      onChange={(event) => {
+                        const nextRuleId = event.target.value;
+                        const targetUser = state.users.find((user) => user.id === Number(transactionForm.userId));
+                        const selectedRule = targetUser?.malusRules?.find((rule) => String(rule.id) === nextRuleId);
+                        setTransactionForm((current) => ({
+                          ...current,
+                          ruleId: nextRuleId,
+                          description: selectedRule?.description || "",
+                        }));
+                      }}
                       required
                       disabled={!transactionForm.userId}
                     >
@@ -1478,6 +1519,19 @@ function App() {
                     </select>
                   </label>
                 )}
+                <label>
+                  Descrizione
+                  <textarea
+                    rows="3"
+                    value={transactionForm.description}
+                    onChange={(event) =>
+                      setTransactionForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                    placeholder="Motivo del malus"
+                    required
+                    disabled={!isAdmin && !transactionForm.ruleId}
+                  />
+                </label>
                 <button className="btn btn-primary" type="submit">
                   Registra malus
                 </button>
@@ -1515,7 +1569,8 @@ function App() {
                 .map((user, index) => (
                   <div className={`leaderboard-row ${user.id === currentUser.id ? "current-user" : ""}`} key={user.id}>
                     <div className="rank">#{index + 1}</div>
-                    <div>
+                    <UserAvatar user={user} size="md" />
+                    <div className="leaderboard-info">
                       <strong>{user.displayName}</strong>
                       <p className="muted">{user.username}</p>
                     </div>
@@ -1536,6 +1591,7 @@ function App() {
               <table>
                 <thead>
                   <tr>
+                    <th>IMG</th>
                     <th>ID</th>
                     <th>Utente</th>
                     <th>Malus</th>
@@ -1549,6 +1605,9 @@ function App() {
                 <tbody>
                   {state.transactions.map((transaction) => (
                     <tr key={transaction.id} className={transaction.cancelled ? "cancelled" : ""}>
+                      <td className="table-avatar">
+                        <UserAvatar user={findUser(state.users, transaction.userId)} size="xs" />
+                      </td>
                       <td>{transaction.id}</td>
                       <td>{labelForUser(state.users, transaction.userId)}</td>
                       <td>
@@ -1571,22 +1630,25 @@ function App() {
           <section className="grid two-cols">
             <article className="card">
               <h2>Profilo</h2>
-              <div className="stack compact">
-                <div className="info-row">
-                  <span>Nome</span>
-                  <strong>{currentUser.displayName}</strong>
-                </div>
-                <div className="info-row">
-                  <span>Username</span>
-                  <strong>{currentUser.username}</strong>
-                </div>
-                <div className="info-row">
-                  <span>Email</span>
-                  <strong>{currentUser.email || "-"}</strong>
-                </div>
-                <div className="info-row">
-                  <span>Ruolo</span>
-                  <strong>{currentUser.role}</strong>
+              <div className="profile-header">
+                <UserAvatar user={currentUser} size="lg" />
+                <div className="stack compact">
+                  <div className="info-row">
+                    <span>Nome</span>
+                    <strong>{currentUser.displayName}</strong>
+                  </div>
+                  <div className="info-row">
+                    <span>Username</span>
+                    <strong>{currentUser.username}</strong>
+                  </div>
+                  <div className="info-row">
+                    <span>Email</span>
+                    <strong>{currentUser.email || "-"}</strong>
+                  </div>
+                  <div className="info-row">
+                    <span>Ruolo</span>
+                    <strong>{currentUser.role}</strong>
+                  </div>
                 </div>
               </div>
             </article>
@@ -1751,6 +1813,25 @@ function App() {
                   />
                 </label>
                 <label>
+                  Omino
+                  <select
+                    value={userForm.avatarKey}
+                    onChange={(event) =>
+                      setUserForm((current) => ({ ...current, avatarKey: event.target.value }))
+                    }
+                  >
+                    {AVATAR_OPTIONS.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="avatar-preview">
+                  <UserAvatar user={{ ...userForm, displayName: userForm.displayName || "Preview" }} size="sm" />
+                  <span className="muted">Anteprima omino</span>
+                </div>
+                <label>
                   Password
                   <input
                     value={userForm.password}
@@ -1813,12 +1894,15 @@ function App() {
                     : state.users.filter((user) => !user.isHidden)
                 ).map((user) => (
                   <div className="admin-item" key={user.id}>
-                    <div>
-                      <strong>{user.displayName}</strong>
-                      <p className="muted">
-                        {user.username} · {user.role} · {formatCurrency(user.balance)}
-                        {user.isHidden ? " · nascosto" : ""}
-                      </p>
+                    <div className="admin-user">
+                      <UserAvatar user={user} size="sm" />
+                      <div>
+                        <strong>{user.displayName}</strong>
+                        <p className="muted">
+                          {user.username} · {user.role} · {formatCurrency(user.balance)}
+                          {user.isHidden ? " · nascosto" : ""}
+                        </p>
+                      </div>
                     </div>
                     <div className="actions-row">
                       <button className="btn btn-accent" type="button" onClick={() => startEditUser(user)}>
@@ -1991,7 +2075,15 @@ function App() {
                   <select
                     value={transactionForm.userId}
                     onChange={(event) =>
-                      setTransactionForm((current) => ({ ...current, userId: event.target.value }))
+                      setTransactionForm((current) => {
+                        const nextUserId = event.target.value;
+                        const selectedRule = ruleForUserAndType(nextUserId, current.malusTypeId);
+                        return {
+                          ...current,
+                          userId: nextUserId,
+                          description: selectedRule?.description || current.description,
+                        };
+                      })
                     }
                     required
                   >
@@ -2008,7 +2100,15 @@ function App() {
                   <select
                     value={transactionForm.malusTypeId}
                     onChange={(event) =>
-                      setTransactionForm((current) => ({ ...current, malusTypeId: event.target.value }))
+                      setTransactionForm((current) => {
+                        const nextMalusType = event.target.value;
+                        const selectedRule = ruleForUserAndType(current.userId, nextMalusType);
+                        return {
+                          ...current,
+                          malusTypeId: nextMalusType,
+                          description: selectedRule?.description || current.description,
+                        };
+                      })
                     }
                     required
                   >
@@ -2086,13 +2186,17 @@ function App() {
 }
 
 function TransactionItem({ transaction, users, malusTypes }) {
+  const user = findUser(users, transaction.userId);
   return (
     <div className={`transaction-item ${transaction.cancelled ? "cancelled" : ""}`}>
-      <div>
-        <strong>{labelForUser(users, transaction.userId)}</strong>
-        <p className="muted">
-          {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
-        </p>
+      <div className="transaction-main">
+        <UserAvatar user={user} size="sm" />
+        <div>
+          <strong>{labelForUser(users, transaction.userId)}</strong>
+          <p className="muted">
+            {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
+          </p>
+        </div>
       </div>
       <div className="transaction-meta">
         <span className="negative">-{formatCurrency(transaction.amount)}</span>
@@ -2101,6 +2205,20 @@ function TransactionItem({ transaction, users, malusTypes }) {
     </div>
   );
 }
+
+function UserAvatar({ user, size = "md" }) {
+  const avatarKey = user?.avatarKey || DEFAULT_AVATAR_KEY;
+  const meta = avatarLookup.get(avatarKey) || avatarLookup.get(DEFAULT_AVATAR_KEY);
+  const label = user?.displayName ? `Avatar di ${user.displayName}` : "Avatar";
+
+  return (
+    <div className={`avatar avatar-${size} ${meta?.tone || "tone-1"}`} title={label}>
+      <img src={avatarPlaceholder} alt="" aria-hidden="true" />
+    </div>
+  );
+}
+
+const findUser = (users, userId) => users.find((user) => user.id === userId);
 
 const labelForUser = (users, userId) => users.find((user) => user.id === userId)?.displayName || "Utente";
 const labelForMalus = (malusTypes, malusTypeId) =>

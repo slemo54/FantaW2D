@@ -10,6 +10,7 @@ create table if not exists public.users (
   role text not null default 'user' check (role in ('user', 'admin')),
   balance numeric(10,2) not null default 0,
   is_hidden boolean not null default false,
+  avatar_key text,
   created_at timestamptz not null default now()
 );
 

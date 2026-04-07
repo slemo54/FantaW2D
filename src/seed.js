@@ -32,6 +32,17 @@ const userSeeds = [
   ["veronicapimazzon", "Veronica Pimazzon", "user", "user123", ""],
 ];
 
+const avatarKeys = [
+  "placeholder-1",
+  "placeholder-2",
+  "placeholder-3",
+  "placeholder-4",
+  "placeholder-5",
+  "placeholder-6",
+  "placeholder-7",
+  "placeholder-8",
+];
+
 const ruleSeeds = {
   "Andrea Cariglia": [["malus-1", "If Paglialunga talks to him"]],
   "Andrea Darra": [
@@ -88,6 +99,7 @@ export const createInitialState = () => {
     role,
     password,
     email,
+    avatarKey: avatarKeys[index % avatarKeys.length],
     balance: 0,
     isHidden: false,
     malusRules: (ruleSeeds[displayName] || []).map(([malusTypeId, description]) => ({
