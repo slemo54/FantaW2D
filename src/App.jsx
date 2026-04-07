@@ -690,7 +690,7 @@ function App() {
       if (supabase) {
         (async () => {
           if (editingUserId) {
-            const { error } = await supabase
+            let { error } = await supabase
               .from("users")
               .update({
                 username: nextPayload.username,
@@ -703,6 +703,20 @@ function App() {
               })
               .eq("id", editingUserId);
 
+            if (error && error.message?.includes("avatar_key")) {
+              ({ error } = await supabase
+                .from("users")
+                .update({
+                  username: nextPayload.username,
+                  display_name: nextPayload.displayName,
+                  password_text: nextPayload.password,
+                  email: nextPayload.email || null,
+                  role: nextPayload.role,
+                  is_hidden: nextPayload.isHidden,
+                })
+                .eq("id", editingUserId));
+            }
+
             if (error) {
               setNotice(`Errore Supabase (utente): ${error.message}`);
               return;
@@ -711,7 +725,7 @@ function App() {
             setNotice("Utente aggiornato.");
             loadUsersFromSupabase();
           } else {
-            const { error } = await supabase.from("users").insert({
+            let { error } = await supabase.from("users").insert({
               username: nextPayload.username,
               display_name: nextPayload.displayName,
               password_text: nextPayload.password,
@@ -720,6 +734,17 @@ function App() {
               is_hidden: nextPayload.isHidden,
               avatar_key: nextPayload.avatarKey,
             });
+
+            if (error && error.message?.includes("avatar_key")) {
+              ({ error } = await supabase.from("users").insert({
+                username: nextPayload.username,
+                display_name: nextPayload.displayName,
+                password_text: nextPayload.password,
+                email: nextPayload.email || null,
+                role: nextPayload.role,
+                is_hidden: nextPayload.isHidden,
+              }));
+            }
 
             if (error) {
               setNotice(`Errore Supabase (utente): ${error.message}`);
