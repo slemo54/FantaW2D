@@ -1459,15 +1459,25 @@ function App() {
                     required
                   />
                 </label>
-                <label>
-                  Foto (opzionale)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
-                  />
-                </label>
+                <div className="photo-inputs">
+                  <label>
+                    Foto da galleria
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                  <label>
+                    Foto da fotocamera
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
                 <button className="btn btn-primary" type="submit">
                   Invia proposta
                 </button>
@@ -1708,15 +1718,25 @@ function App() {
                     </select>
                   </label>
                 ) : null}
-                <label>
-                  Foto (opzionale)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(event) => setTransactionPhoto(event.target.files?.[0] || null)}
-                  />
-                </label>
+                <div className="photo-inputs">
+                  <label>
+                    Foto da galleria
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setTransactionPhoto(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                  <label>
+                    Foto da fotocamera
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(event) => setTransactionPhoto(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
                 {isAdmin ? null : (
                   <label>
                     Malus preimpostato
@@ -2038,15 +2058,25 @@ function App() {
                     required
                   />
                 </label>
-                <label>
-                  Foto (opzionale)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
-                  />
-                </label>
+                <div className="photo-inputs">
+                  <label>
+                    Foto da galleria
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                  <label>
+                    Foto da fotocamera
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
                 <button className="btn btn-primary" type="submit">
                   Invia proposta
                 </button>

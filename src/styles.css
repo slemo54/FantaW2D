@@ -609,6 +609,11 @@ th {
   font-size: 0.85rem;
 }
 
+.photo-inputs {
+  display: grid;
+  gap: 10px;
+}
+
 @media (max-width: 900px) {
   .table-wrap {
     display: none;
