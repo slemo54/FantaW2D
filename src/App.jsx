@@ -158,7 +158,7 @@ function App() {
   }, [notice]);
 
   const currentUser = state.users.find((user) => user.id === state.currentUserId) ?? null;
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || currentUser?.username === "admin";
   const visibleUsers = state.users.filter((user) => !user.isHidden && user.role !== "admin");
   const assignableUsers = state.users.filter((user) => user.role !== "admin" && !user.isHidden);
   const selectableUsers = isAdmin ? assignableUsers : assignableUsers;
@@ -1728,6 +1728,34 @@ function App() {
                 ))}
               </div>
             </article>
+            <article className="card span-2">
+              <h2>Malus degli altri</h2>
+              <p className="muted">Promemoria veloce dei malus personali attivi.</p>
+              <div className="malus-board">
+                {activeUsers.map((user) => (
+                  <div className="malus-board-item" key={user.id}>
+                    <div className="malus-board-header">
+                      <UserAvatar user={user} size="sm" />
+                      <div>
+                        <strong>{user.displayName}</strong>
+                        <p className="muted">{user.username}</p>
+                      </div>
+                    </div>
+                    <div className="malus-chip-list">
+                      {user.malusRules.length ? (
+                        user.malusRules.map((rule) => (
+                          <span className="malus-chip" key={rule.id}>
+                            {labelForMalus(state.malusTypes, rule.malusTypeId)} · {rule.description}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="muted">Nessun malus personale.</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
           </section>
         ) : null}
 
@@ -1802,9 +1830,16 @@ function App() {
                 return (
                   <article className={`tx-card ${transaction.cancelled ? "cancelled" : ""}`} key={transaction.id}>
                     <header className="tx-card-header">
-                      <UserAvatar user={targetUser} size="md" />
+                      <div className="tx-chain">
+                        <UserAvatar user={createdBy} size="xs" />
+                        <span className="tx-arrow">→</span>
+                        <UserAvatar user={targetUser} size="sm" />
+                      </div>
                       <div className="tx-card-title">
-                        <strong>{labelForUser(state.users, transaction.userId)}</strong>
+                        <strong>
+                          {labelForUser(state.users, transaction.createdBy)} ha colpito{" "}
+                          {labelForUser(state.users, transaction.userId)}
+                        </strong>
                         <span className="muted">ID #{transaction.id}</span>
                       </div>
                       <div className={`tx-pill ${transaction.cancelled ? "muted" : "negative"}`}>
@@ -2401,12 +2436,17 @@ function App() {
 
 function TransactionItem({ transaction, users, malusTypes }) {
   const user = findUser(users, transaction.userId);
+  const creator = findUser(users, transaction.createdBy);
   return (
     <div className={`transaction-item ${transaction.cancelled ? "cancelled" : ""}`}>
       <div className="transaction-main">
+        <UserAvatar user={creator} size="xs" />
+        <span className="tx-arrow">→</span>
         <UserAvatar user={user} size="sm" />
         <div>
-          <strong>{labelForUser(users, transaction.userId)}</strong>
+          <strong>
+            {labelForUser(users, transaction.createdBy)} ha colpito {labelForUser(users, transaction.userId)}
+          </strong>
           <p className="muted">
             {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
           </p>
