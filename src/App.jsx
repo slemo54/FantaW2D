@@ -1837,7 +1837,7 @@ function App() {
                       </div>
                       <div className="tx-card-title">
                         <strong>
-                          {labelForUser(state.users, transaction.createdBy)} ha colpito{" "}
+                          {labelForUser(state.users, transaction.createdBy)} {verbForTransaction(transaction.id)}{" "}
                           {labelForUser(state.users, transaction.userId)}
                         </strong>
                         <span className="muted">ID #{transaction.id}</span>
@@ -2445,7 +2445,8 @@ function TransactionItem({ transaction, users, malusTypes }) {
         <UserAvatar user={user} size="sm" />
         <div>
           <strong>
-            {labelForUser(users, transaction.createdBy)} ha colpito {labelForUser(users, transaction.userId)}
+            {labelForUser(users, transaction.createdBy)} {verbForTransaction(transaction.id)}{" "}
+            {labelForUser(users, transaction.userId)}
           </strong>
           <p className="muted">
             {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
@@ -2477,6 +2478,11 @@ const findUser = (users, userId) => users.find((user) => user.id === userId);
 const labelForUser = (users, userId) => users.find((user) => user.id === userId)?.displayName || "Utente";
 const labelForMalus = (malusTypes, malusTypeId) =>
   malusTypes.find((malus) => malus.id === malusTypeId)?.name || "Malus";
+const verbForTransaction = (transactionId) => {
+  const verbs = ["ha beccato", "ha sgamato", "ha spottato"];
+  const index = Math.abs(Number(transactionId || 0)) % verbs.length;
+  return verbs[index];
+};
 const formatDate = (value) =>
   new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
