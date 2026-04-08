@@ -137,6 +137,8 @@ function App() {
   const [transactionForm, setTransactionForm] = useState(emptyTransactionForm);
   const [editingTransactionId, setEditingTransactionId] = useState(null);
   const [proposalForm, setProposalForm] = useState(emptyProposalForm);
+  const [proposalPhoto, setProposalPhoto] = useState(null);
+  const [transactionPhoto, setTransactionPhoto] = useState(null);
   const [voteName, setVoteName] = useState("");
   const [publicProposals, setPublicProposals] = useState([]);
   const [publicLoading, setPublicLoading] = useState(false);
@@ -212,6 +214,37 @@ function App() {
 
   const ruleForUserAndType = (userId, malusTypeId) =>
     rulesForUser(userId).find((rule) => rule.malusTypeId === malusTypeId) || null;
+
+  const fileToDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Errore lettura immagine."));
+      reader.readAsDataURL(file);
+    });
+
+  const uploadPhoto = async (supabase, file, prefix) => {
+    if (!file) {
+      return "";
+    }
+    if (!supabase) {
+      return fileToDataUrl(file);
+    }
+
+    const bucket = "malus-media";
+    const safeName = file.name.replace(/\s+/g, "-").toLowerCase();
+    const filePath = `${prefix}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+    const { error } = await supabase.storage.from(bucket).upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: file.type || "image/jpeg",
+    });
+    if (error) {
+      throw error;
+    }
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    return data?.publicUrl || "";
+  };
 
   const loadUsersFromSupabase = async () => {
     const supabase = await getSupabaseClient();
@@ -355,7 +388,7 @@ function App() {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("id, user_id, created_by, malus_type_id, amount, description, cancelled, created_at")
+      .select("id, user_id, created_by, malus_type_id, amount, description, cancelled, created_at, photo_url")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -377,6 +410,7 @@ function App() {
         description: row.description,
         cancelled: row.cancelled,
         timestamp: row.created_at,
+        photoUrl: row.photo_url || "",
       }));
 
       return deriveState({
@@ -403,7 +437,7 @@ function App() {
     try {
       const { data: proposalsData, error: proposalsError } = await supabase
         .from("proposals")
-        .select("id, proposer_name, target_name, description, created_at")
+        .select("id, proposer_name, target_name, description, created_at, photo_url")
         .order("created_at", { ascending: false });
 
       if (proposalsError) {
@@ -438,6 +472,7 @@ function App() {
         targetName: proposal.target_name,
         description: proposal.description,
         createdAt: proposal.created_at,
+        photoUrl: proposal.photo_url || "",
         votes: voteMap.get(proposal.id) || [],
       }));
 
@@ -550,39 +585,48 @@ function App() {
       return;
     }
 
-    getSupabaseClient().then((supabase) => {
+    (async () => {
+      const supabase = await getSupabaseClient();
+      let photoUrl = "";
+      try {
+        photoUrl = await uploadPhoto(supabase, transactionPhoto, "transactions");
+      } catch (error) {
+        setNotice(`Errore upload foto: ${error.message}`);
+        return;
+      }
+
       if (supabase && resolvedMalusType?.dbId) {
-        (async () => {
-          const payload = applyToAll
-            ? targetUsers.map((user) => ({
-                user_id: user.id,
+        const payload = applyToAll
+          ? targetUsers.map((user) => ({
+              user_id: user.id,
+              created_by: currentUser.id,
+              malus_type_id: resolvedMalusType.dbId,
+              amount: Number(resolvedMalusType.amount),
+              description,
+              cancelled: false,
+              photo_url: photoUrl || null,
+            }))
+          : [
+              {
+                user_id: Number(transactionForm.userId),
                 created_by: currentUser.id,
                 malus_type_id: resolvedMalusType.dbId,
                 amount: Number(resolvedMalusType.amount),
                 description,
                 cancelled: false,
-              }))
-            : [
-                {
-                  user_id: Number(transactionForm.userId),
-                  created_by: currentUser.id,
-                  malus_type_id: resolvedMalusType.dbId,
-                  amount: Number(resolvedMalusType.amount),
-                  description,
-                  cancelled: false,
-                },
-              ];
+                photo_url: photoUrl || null,
+              },
+            ];
 
-          const { error } = await supabase.from("transactions").insert(payload);
+        const { error } = await supabase.from("transactions").insert(payload);
 
-          if (error) {
-            setNotice(`Errore Supabase (transazioni): ${error.message}`);
-            return;
-          }
+        if (error) {
+          setNotice(`Errore Supabase (transazioni): ${error.message}`);
+          return;
+        }
 
-          setNotice(applyToAll ? "Malus registrato per tutti." : "Malus registrato.");
-          loadTransactionsFromSupabase();
-        })();
+        setNotice(applyToAll ? "Malus registrato per tutti." : "Malus registrato.");
+        loadTransactionsFromSupabase();
       } else {
         updateState(
           (current) => {
@@ -598,6 +642,7 @@ function App() {
                 description,
                 cancelled: false,
                 timestamp,
+                photoUrl,
               }));
               return {
                 ...current,
@@ -622,6 +667,7 @@ function App() {
                   description,
                   cancelled: false,
                   timestamp,
+                  photoUrl,
                 },
                 ...current.transactions,
               ],
@@ -634,9 +680,10 @@ function App() {
           applyToAll ? "Malus registrato per tutti." : "Malus registrato.",
         );
       }
-    });
+    })();
 
     setTransactionForm(emptyTransactionForm);
+    setTransactionPhoto(null);
   };
 
   const submitProposal = (event) => {
@@ -650,7 +697,7 @@ function App() {
       return;
     }
 
-    const submitLocalProposal = () => {
+    const submitLocalProposal = (photoUrl) => {
       updateState((current) => ({
         ...current,
         proposals: [
@@ -661,6 +708,7 @@ function App() {
             description,
             createdAt: new Date().toISOString(),
             votes: [],
+            photoUrl,
           },
           ...current.proposals,
         ],
@@ -670,31 +718,41 @@ function App() {
         },
       }), "Proposta inserita. Ora si puo votare.");
       setProposalForm(emptyProposalForm);
+      setProposalPhoto(null);
     };
 
-    getSupabaseClient().then((supabase) => {
-      if (!supabase) {
-        submitLocalProposal();
+    (async () => {
+      const supabase = await getSupabaseClient();
+      let photoUrl = "";
+      try {
+        photoUrl = await uploadPhoto(supabase, proposalPhoto, "proposals");
+      } catch (error) {
+        setNotice(`Errore upload foto: ${error.message}`);
         return;
       }
 
-      (async () => {
-        const { error } = await supabase.from("proposals").insert({
-          proposer_name: proposerName,
-          target_name: targetName,
-          description,
-        });
+      if (!supabase) {
+        submitLocalProposal(photoUrl);
+        return;
+      }
 
-        if (error) {
-          setNotice("Errore nel salvataggio della proposta.");
-          return;
-        }
+      const { error } = await supabase.from("proposals").insert({
+        proposer_name: proposerName,
+        target_name: targetName,
+        description,
+        photo_url: photoUrl || null,
+      });
 
-        setProposalForm(emptyProposalForm);
-        setNotice("Proposta inserita. Ora si puo votare.");
-        loadPublicProposals();
-      })();
-    });
+      if (error) {
+        setNotice("Errore nel salvataggio della proposta.");
+        return;
+      }
+
+      setProposalForm(emptyProposalForm);
+      setProposalPhoto(null);
+      setNotice("Proposta inserita. Ora si puo votare.");
+      loadPublicProposals();
+    })();
   };
 
   const voteProposal = (proposalId) => {
@@ -1401,6 +1459,15 @@ function App() {
                     required
                   />
                 </label>
+                <label>
+                  Foto (opzionale)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
+                  />
+                </label>
                 <button className="btn btn-primary" type="submit">
                   Invia proposta
                 </button>
@@ -1423,16 +1490,17 @@ function App() {
                       .sort((a, b) => b.votes.length - a.votes.length)
                       .map((proposal) => (
                         <div className="proposal-card" key={proposal.id}>
-                          <div className="proposal-header">
-                            <div>
-                              <strong>{proposal.targetName}</strong>
-                              <p className="muted">
-                                Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
-                              </p>
-                            </div>
-                            <div className="vote-count">{proposal.votes.length} voti</div>
-                          </div>
-                          <p>{proposal.description}</p>
+                      <div className="proposal-header">
+                        <div>
+                          <strong>{proposal.targetName}</strong>
+                          <p className="muted">
+                            Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
+                          </p>
+                        </div>
+                        <div className="vote-count">{proposal.votes.length} voti</div>
+                      </div>
+                      {proposal.photoUrl ? <img className="proposal-photo" src={proposal.photoUrl} alt="" /> : null}
+                      <p>{proposal.description}</p>
                           <button
                             className="btn btn-accent"
                             type="button"
@@ -1640,6 +1708,15 @@ function App() {
                     </select>
                   </label>
                 ) : null}
+                <label>
+                  Foto (opzionale)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => setTransactionPhoto(event.target.files?.[0] || null)}
+                  />
+                </label>
                 {isAdmin ? null : (
                   <label>
                     Malus preimpostato
@@ -1855,6 +1932,11 @@ function App() {
                         <span>Motivo</span>
                         <strong>{transaction.description || "-"}</strong>
                       </div>
+                      {transaction.photoUrl ? (
+                        <div className="tx-photo-wrap">
+                          <img className="transaction-photo" src={transaction.photoUrl} alt="" />
+                        </div>
+                      ) : null}
                       <div className="tx-row">
                         <span>Creato da</span>
                         <strong>{labelForUser(state.users, transaction.createdBy)}</strong>
@@ -1956,6 +2038,15 @@ function App() {
                     required
                   />
                 </label>
+                <label>
+                  Foto (opzionale)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => setProposalPhoto(event.target.files?.[0] || null)}
+                  />
+                </label>
                 <button className="btn btn-primary" type="submit">
                   Invia proposta
                 </button>
@@ -1980,16 +2071,17 @@ function App() {
                     .sort((a, b) => b.votes.length - a.votes.length)
                     .map((proposal) => (
                       <div className="proposal-card" key={proposal.id}>
-                        <div className="proposal-header">
-                          <div>
-                            <strong>{proposal.targetName}</strong>
-                            <p className="muted">
-                              Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
-                            </p>
-                          </div>
-                          <div className="vote-count">{proposal.votes.length} voti</div>
-                        </div>
-                        <p>{proposal.description}</p>
+                    <div className="proposal-header">
+                      <div>
+                        <strong>{proposal.targetName}</strong>
+                        <p className="muted">
+                          Proposto da {proposal.proposerName} · {formatDate(proposal.createdAt)}
+                        </p>
+                      </div>
+                      <div className="vote-count">{proposal.votes.length} voti</div>
+                    </div>
+                    {proposal.photoUrl ? <img className="proposal-photo" src={proposal.photoUrl} alt="" /> : null}
+                    <p>{proposal.description}</p>
                         <button
                           className="btn btn-accent"
                           type="button"
@@ -2451,6 +2543,7 @@ function TransactionItem({ transaction, users, malusTypes }) {
           <p className="muted">
             {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
           </p>
+          {transaction.photoUrl ? <img className="transaction-photo" src={transaction.photoUrl} alt="" /> : null}
         </div>
       </div>
       <div className="transaction-meta">

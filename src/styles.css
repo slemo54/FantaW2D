@@ -377,6 +377,21 @@ textarea {
   box-shadow: 0 8px 16px rgba(31, 42, 68, 0.08);
 }
 
+.proposal-photo,
+.transaction-photo {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 14px;
+  margin-top: 10px;
+  border: 1px solid rgba(123, 97, 255, 0.16);
+  box-shadow: 0 12px 24px rgba(31, 42, 68, 0.12);
+}
+
+.tx-photo-wrap {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
@@ -787,6 +802,11 @@ th {
 
   .tx-row strong {
     font-size: 1rem;
+  }
+
+  .proposal-photo,
+  .transaction-photo {
+    max-width: 100%;
   }
 
   .nav-tabs {
