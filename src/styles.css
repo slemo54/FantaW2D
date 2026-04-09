@@ -1,17 +1,19 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap");
 
 :root {
-  --primary-color: #7b61ff;
-  --secondary-color: #1f9fff;
-  --accent-color: #ff8a00;
+  --primary-color: #6254f4;
+  --secondary-color: #19a0ff;
+  --accent-color: #ff9b2f;
   --text-color: #1f2a44;
   --light-bg: #f4f6ff;
-  --card-shadow: 0 18px 40px rgba(31, 42, 68, 0.12);
+  --card-shadow: 0 16px 34px rgba(30, 45, 78, 0.13);
   --danger-color: #ff4d6d;
   --success-color: #3ad29f;
   --border-color: rgba(31, 42, 68, 0.08);
-  --glass: rgba(255, 255, 255, 0.72);
+  --glass: rgba(255, 255, 255, 0.78);
   --radius-xl: 26px;
+  --surface-soft: rgba(255, 255, 255, 0.95);
+  --surface-alt: rgba(98, 84, 244, 0.06);
 }
 
 * {
@@ -27,6 +29,18 @@ body {
     radial-gradient(circle at 50% 90%, rgba(255, 138, 0, 0.2), transparent 50%),
     linear-gradient(180deg, #fbfcff 0%, var(--light-bg) 100%);
   color: var(--text-color);
+  line-height: 1.35;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 32%, rgba(255, 155, 47, 0.15), transparent 18%),
+    radial-gradient(circle at 94% 72%, rgba(98, 84, 244, 0.14), transparent 22%);
+  z-index: -1;
 }
 
 button,
@@ -42,7 +56,7 @@ button {
 
 .app-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 22px;
 }
 
 .container {
@@ -61,6 +75,15 @@ button {
   animation: floatIn 0.5s ease both;
 }
 
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 38px rgba(31, 42, 68, 0.14);
+}
+
 .app-header {
   padding: 24px 28px;
   margin-bottom: 20px;
@@ -68,7 +91,15 @@ button {
   justify-content: space-between;
   gap: 20px;
   align-items: center;
-  background: linear-gradient(120deg, rgba(123, 97, 255, 0.18), rgba(31, 159, 255, 0.12));
+  background:
+    linear-gradient(120deg, rgba(98, 84, 244, 0.22), rgba(25, 160, 255, 0.16)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.08) 8px,
+      rgba(255, 255, 255, 0.02) 8px,
+      rgba(255, 255, 255, 0.02) 16px
+    );
 }
 
 .app-header h1,
@@ -193,6 +224,7 @@ button {
 
 .card {
   padding: 24px 26px;
+  background: linear-gradient(180deg, var(--surface-soft), rgba(255, 255, 255, 0.9));
 }
 
 .grid.two-cols,
@@ -373,18 +405,19 @@ textarea {
   border: 1px solid rgba(123, 97, 255, 0.12);
   border-radius: 20px;
   padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 16px rgba(31, 42, 68, 0.08);
+  background: var(--surface-soft);
+  box-shadow: 0 10px 20px rgba(31, 42, 68, 0.08);
 }
 
 .proposal-photo,
 .transaction-photo {
   width: 100%;
-  max-width: 320px;
+  max-width: 340px;
   border-radius: 14px;
   margin-top: 10px;
   border: 1px solid rgba(123, 97, 255, 0.16);
-  box-shadow: 0 12px 24px rgba(31, 42, 68, 0.12);
+  box-shadow: 0 12px 24px rgba(31, 42, 68, 0.14);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .photo-button {
@@ -392,6 +425,13 @@ textarea {
   border: none;
   padding: 0;
   cursor: pointer;
+  text-align: left;
+}
+
+.photo-button:hover .proposal-photo,
+.photo-button:hover .transaction-photo {
+  transform: scale(1.01);
+  box-shadow: 0 16px 28px rgba(31, 42, 68, 0.18);
 }
 
 .lightbox {
@@ -554,14 +594,15 @@ th {
 .tx-cards {
   display: none;
   margin-top: 16px;
-  gap: 14px;
+  gap: 18px;
 }
 
 .tx-card {
-  background: white;
-  border-radius: 18px;
-  padding: 14px 16px;
-  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.96));
+  border-radius: 20px;
+  padding: 18px;
+  border: 1px solid rgba(98, 84, 244, 0.12);
+  box-shadow: 0 16px 28px rgba(31, 41, 55, 0.09);
   width: 100%;
 }
 
@@ -571,21 +612,27 @@ th {
 
 .tx-card-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 10px;
+  gap: 10px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.tx-card-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .tx-card-title {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
 .tx-card-title strong {
-  line-height: 1.25;
+  line-height: 1.3;
+  font-size: 1.05rem;
 }
 
 .tx-pill {
@@ -599,26 +646,35 @@ th {
 
 .tx-card-body {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .tx-row {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
-  font-size: 0.95rem;
+  font-size: 0.97rem;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(98, 84, 244, 0.12);
+}
+
+.tx-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .tx-row span {
-  color: #6d7186;
+  color: #5f6680;
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .tx-row strong {
   text-align: left;
   word-break: break-word;
+  font-weight: 800;
 }
 
 .malus-board {
@@ -660,6 +716,10 @@ th {
 .photo-inputs {
   display: grid;
   gap: 10px;
+}
+
+.table-wrap table td {
+  vertical-align: top;
 }
 
 @media (max-width: 900px) {
@@ -798,15 +858,16 @@ th {
 
 @media (max-width: 640px) {
   .app-shell {
-    padding: 16px;
+    padding: 12px;
   }
 
   .app-header {
-    padding: 20px;
+    padding: 18px 16px;
   }
 
   .card {
-    padding: 20px;
+    padding: 16px;
+    border-radius: 20px;
   }
 
   .nav-tabs {
@@ -819,7 +880,7 @@ th {
   }
 
   .amount {
-    font-size: 2.2rem;
+    font-size: 2rem;
   }
 
   .btn {
@@ -835,40 +896,58 @@ th {
   }
 
   .tx-card {
-    padding: 16px;
+    padding: 16px 14px;
     border-radius: 16px;
   }
 
-  .tx-card-header {
-    grid-template-columns: auto 1fr;
+  .tx-card-headline {
+    align-items: flex-start;
     gap: 10px;
   }
 
   .tx-pill {
-    grid-column: span 2;
     justify-self: flex-start;
+    font-size: 1.02rem;
+    padding: 7px 12px;
+  }
+
+  .tx-chain {
+    gap: 7px;
   }
 
   .tx-row {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 4px;
+    padding-bottom: 10px;
   }
 
   .tx-row strong {
-    font-size: 1rem;
+    font-size: 1.04rem;
+    line-height: 1.34;
   }
 
   .tx-card-body {
-    gap: 12px;
+    gap: 10px;
   }
 
   .tx-cards {
-    gap: 16px;
+    gap: 14px;
   }
 
   .proposal-photo,
   .transaction-photo {
     max-width: 100%;
+    border-radius: 12px;
+  }
+
+  .tx-photo-wrap .photo-button {
+    width: 100%;
+  }
+
+  .tx-photo-wrap .transaction-photo {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
   }
 
   .nav-tabs {
@@ -879,6 +958,11 @@ th {
 
   .nav-tabs button {
     white-space: nowrap;
+  }
+
+  .app-footer {
+    margin-top: 22px;
+    padding-bottom: 8px;
   }
 }
 

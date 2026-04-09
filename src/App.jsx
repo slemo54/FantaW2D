@@ -1830,6 +1830,7 @@ function App() {
                     transaction={transaction}
                     users={state.users}
                     malusTypes={state.malusTypes}
+                    onOpenPhoto={setLightboxUrl}
                   />
                 ))}
               </div>
@@ -1936,10 +1937,15 @@ function App() {
                 return (
                   <article className={`tx-card ${transaction.cancelled ? "cancelled" : ""}`} key={transaction.id}>
                     <header className="tx-card-header">
-                      <div className="tx-chain">
-                        <UserAvatar user={createdBy} size="xs" />
-                        <span className="tx-arrow">→</span>
-                        <UserAvatar user={targetUser} size="sm" />
+                      <div className="tx-card-headline">
+                        <div className="tx-chain">
+                          <UserAvatar user={createdBy} size="xs" />
+                          <span className="tx-arrow">→</span>
+                          <UserAvatar user={targetUser} size="sm" />
+                        </div>
+                        <div className={`tx-pill ${transaction.cancelled ? "muted" : "negative"}`}>
+                          -{formatCurrency(transaction.amount)}
+                        </div>
                       </div>
                       <div className="tx-card-title">
                         <strong>
@@ -1947,9 +1953,6 @@ function App() {
                           {labelForUser(state.users, transaction.userId)}
                         </strong>
                         <span className="muted">ID #{transaction.id}</span>
-                      </div>
-                      <div className={`tx-pill ${transaction.cancelled ? "muted" : "negative"}`}>
-                        -{formatCurrency(transaction.amount)}
                       </div>
                     </header>
                     <div className="tx-card-body">
@@ -2589,7 +2592,7 @@ function App() {
   );
 }
 
-function TransactionItem({ transaction, users, malusTypes }) {
+function TransactionItem({ transaction, users, malusTypes, onOpenPhoto }) {
   const user = findUser(users, transaction.userId);
   const creator = findUser(users, transaction.createdBy);
   return (
@@ -2607,7 +2610,7 @@ function TransactionItem({ transaction, users, malusTypes }) {
             {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
           </p>
           {transaction.photoUrl ? (
-            <button className="photo-button" type="button" onClick={() => setLightboxUrl(transaction.photoUrl)}>
+            <button className="photo-button" type="button" onClick={() => onOpenPhoto?.(transaction.photoUrl)}>
               <img className="transaction-photo" src={transaction.photoUrl} alt="" />
             </button>
           ) : null}
