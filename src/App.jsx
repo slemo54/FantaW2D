@@ -139,6 +139,7 @@ function App() {
   const [proposalForm, setProposalForm] = useState(emptyProposalForm);
   const [proposalPhoto, setProposalPhoto] = useState(null);
   const [transactionPhoto, setTransactionPhoto] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState("");
   const [voteName, setVoteName] = useState("");
   const [publicProposals, setPublicProposals] = useState([]);
   const [publicLoading, setPublicLoading] = useState(false);
@@ -1509,7 +1510,15 @@ function App() {
                         </div>
                         <div className="vote-count">{proposal.votes.length} voti</div>
                       </div>
-                      {proposal.photoUrl ? <img className="proposal-photo" src={proposal.photoUrl} alt="" /> : null}
+                      {proposal.photoUrl ? (
+                        <button
+                          className="photo-button"
+                          type="button"
+                          onClick={() => setLightboxUrl(proposal.photoUrl)}
+                        >
+                          <img className="proposal-photo" src={proposal.photoUrl} alt="" />
+                        </button>
+                      ) : null}
                       <p>{proposal.description}</p>
                           <button
                             className="btn btn-accent"
@@ -1954,7 +1963,13 @@ function App() {
                       </div>
                       {transaction.photoUrl ? (
                         <div className="tx-photo-wrap">
-                          <img className="transaction-photo" src={transaction.photoUrl} alt="" />
+                          <button
+                            className="photo-button"
+                            type="button"
+                            onClick={() => setLightboxUrl(transaction.photoUrl)}
+                          >
+                            <img className="transaction-photo" src={transaction.photoUrl} alt="" />
+                          </button>
                         </div>
                       ) : null}
                       <div className="tx-row">
@@ -2110,7 +2125,15 @@ function App() {
                       </div>
                       <div className="vote-count">{proposal.votes.length} voti</div>
                     </div>
-                    {proposal.photoUrl ? <img className="proposal-photo" src={proposal.photoUrl} alt="" /> : null}
+                    {proposal.photoUrl ? (
+                      <button
+                        className="photo-button"
+                        type="button"
+                        onClick={() => setLightboxUrl(proposal.photoUrl)}
+                      >
+                        <img className="proposal-photo" src={proposal.photoUrl} alt="" />
+                      </button>
+                    ) : null}
                     <p>{proposal.description}</p>
                         <button
                           className="btn btn-accent"
@@ -2552,6 +2575,16 @@ function App() {
         ) : null}
         <footer className="app-footer">Creato by Anselmo Acquah</footer>
       </div>
+      {lightboxUrl ? (
+        <div className="lightbox" role="dialog" aria-modal="true" onClick={() => setLightboxUrl("")}>
+          <div className="lightbox-content" onClick={(event) => event.stopPropagation()}>
+            <button className="lightbox-close" type="button" onClick={() => setLightboxUrl("")}>
+              Chiudi
+            </button>
+            <img className="lightbox-image" src={lightboxUrl} alt="" />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2573,7 +2606,11 @@ function TransactionItem({ transaction, users, malusTypes }) {
           <p className="muted">
             {labelForMalus(malusTypes, transaction.malusTypeId)} · {transaction.description}
           </p>
-          {transaction.photoUrl ? <img className="transaction-photo" src={transaction.photoUrl} alt="" /> : null}
+          {transaction.photoUrl ? (
+            <button className="photo-button" type="button" onClick={() => setLightboxUrl(transaction.photoUrl)}>
+              <img className="transaction-photo" src={transaction.photoUrl} alt="" />
+            </button>
+          ) : null}
         </div>
       </div>
       <div className="transaction-meta">

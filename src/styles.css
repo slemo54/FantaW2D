@@ -387,6 +387,50 @@ textarea {
   box-shadow: 0 12px 24px rgba(31, 42, 68, 0.12);
 }
 
+.photo-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 40, 0.72);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.lightbox-content {
+  max-width: min(92vw, 720px);
+  width: 100%;
+  background: white;
+  border-radius: 18px;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 30px 60px rgba(17, 24, 39, 0.35);
+}
+
+.lightbox-image {
+  width: 100%;
+  border-radius: 14px;
+}
+
+.lightbox-close {
+  justify-self: end;
+  background: rgba(123, 97, 255, 0.15);
+  border: none;
+  color: #3d2faf;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
 .tx-photo-wrap {
   display: flex;
   justify-content: flex-start;
@@ -538,6 +582,10 @@ th {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.tx-card-title strong {
+  line-height: 1.25;
 }
 
 .tx-pill {
@@ -787,12 +835,13 @@ th {
   }
 
   .tx-card {
-    padding: 14px;
+    padding: 16px;
     border-radius: 16px;
   }
 
   .tx-card-header {
     grid-template-columns: auto 1fr;
+    gap: 10px;
   }
 
   .tx-pill {
@@ -807,6 +856,14 @@ th {
 
   .tx-row strong {
     font-size: 1rem;
+  }
+
+  .tx-card-body {
+    gap: 12px;
+  }
+
+  .tx-cards {
+    gap: 16px;
   }
 
   .proposal-photo,
